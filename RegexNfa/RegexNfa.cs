@@ -24,6 +24,10 @@ namespace RegexNfa
                     return BuildFromConcatenation((ConcatenationTree)tree);
                 case NodeType.Or:
                     return BuildFromOr((OrTree)tree);
+                case NodeType.Plus:
+                    return BuildFromPlus((PlusTree)tree);
+                case NodeType.Question:
+                    return BuildFromQuestion((QuestionTree)tree);
                 case NodeType.Star:
                     return BuildFromStar((StarTree)tree);
                 case NodeType.Atom:
@@ -48,7 +52,7 @@ namespace RegexNfa
             concatenated.EndState = right.EndState;
             concatenated.EndState.Accepting = true;
 
-            foreach(char atom in left.Alphabet)
+            foreach (char atom in left.Alphabet)
             {
                 concatenated.AddToAlphabet(atom);
             }
@@ -91,6 +95,50 @@ namespace RegexNfa
             }
 
             return or;
+        }
+
+        private RegexAutomaton BuildFromQuestion(QuestionTree tree)
+        {
+            RegexAutomaton inner = BuildFromTree(tree.Inner);
+
+            State start = new State();
+            State end = new State(true);
+            RegexAutomaton question = new RegexAutomaton();
+            question.AddStatesAndTransitions(inner);
+            question.AddState(start);
+            question.AddState(end);
+            question.AddTransition(start, inner.StartState);
+            question.AddTransition(inner.EndState, end);
+            question.AddTransition(start, end);
+            question.StartState = start;
+            question.EndState = end;
+            question.EndState.Accepting = true;
+
+            question.Alphabet = inner.Alphabet;
+
+            return question;
+        }
+
+        private RegexAutomaton BuildFromPlus(PlusTree tree)
+        {
+            RegexAutomaton inner = BuildFromTree(tree.Inner);
+
+            State start = new State();
+            State end = new State(true);
+            RegexAutomaton plus = new RegexAutomaton();
+            plus.AddStatesAndTransitions(inner);
+            plus.AddState(start);
+            plus.AddState(end);
+            plus.AddTransition(start, inner.StartState);
+            plus.AddTransition(inner.EndState, end);
+            plus.AddTransition(end, start);
+            plus.StartState = start;
+            plus.EndState = end;
+            plus.EndState.Accepting = true;
+
+            plus.Alphabet = inner.Alphabet;
+
+            return plus;
         }
 
         private RegexAutomaton BuildFromStar(StarTree tree)

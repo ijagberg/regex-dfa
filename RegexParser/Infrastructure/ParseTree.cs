@@ -6,6 +6,7 @@ namespace RegexParser.Infrastructure
         Atom,
         Star,
         Question,
+        Plus,
         Or,
         Concatenation,
         Empty
@@ -80,6 +81,22 @@ namespace RegexParser.Infrastructure
         public override string ToString()
         {
             return $"Question ( {Inner.ToString()} )";
+        }
+    }
+
+    public class PlusTree : ParseTree
+    {
+        public ParseTree Inner { get; }
+
+        public PlusTree(ParseTree inner)
+        {
+            Type = NodeType.Plus;
+            Inner = inner;
+        }
+
+        public override string ToString()
+        {
+            return $"Plus ( {Inner.ToString()} )";
         }
     }
 

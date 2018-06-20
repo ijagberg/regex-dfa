@@ -238,8 +238,10 @@ namespace RegexNfa.Infrastructure
             dfa.StartState = dfaStartState;
             //
 
-            Dictionary<string, HashSet<string>> stateSets = new Dictionary<string, HashSet<string>>(); 
-            stateSets.Add(dfaStartState.Id, dfaStartStateSet);
+            Dictionary<string, HashSet<string>> stateSets = new Dictionary<string, HashSet<string>>
+            {
+                { dfaStartState.Id, dfaStartStateSet }
+            };
 
             Stack<string> unvisited = new Stack<string>();
 
