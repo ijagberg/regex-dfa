@@ -1,13 +1,9 @@
-
 using RegexNfa.Infrastructure;
-using RegexParser;
 using RegexParser.Infrastructure;
-using System;
-using static RegexNfa.Infrastructure.Automaton;
 
 namespace RegexNfa
 {
-    public class RegexNfa
+    public class RegexNfaConverter
     {
 
         public RegexAutomaton ConvertToNfa(ParseTree tree)
@@ -187,25 +183,6 @@ namespace RegexNfa
             empty.EndState = end;
             empty.EndState.Accepting = true;
             return empty;
-        }
-
-        public static void Main(string[] args)
-        {
-            string regex = "(ga*bb)|(ga*)";
-            // "ga"
-            Parser parser = new Parser(regex);
-            ParseTree tree = parser.Parse();
-            RegexNfa converter = new RegexNfa();
-            RegexAutomaton automaton = converter.ConvertToNfa(tree);
-
-            Console.WriteLine(automaton);
-            Console.ReadKey();
-
-            DeterministicFiniteAutomaton dfa = RegexAutomaton.ConvertToDfa(automaton);
-
-
-            Console.WriteLine(dfa);
-            Console.ReadKey();
         }
     }
 }
