@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RegexNfa;
@@ -17,15 +18,18 @@ namespace RegexNfaTest
             Parser parser = new Parser(regex);
 
             ParseTree tree = parser.Parse();
-            Debug.WriteLine($"tree: {tree}");
 
             RegexNfaConverter converter = new RegexNfaConverter();
 
             RegexAutomaton nfa = converter.ConvertToNfa(tree);
-            Debug.WriteLine($"nfa: {nfa}");
 
             DeterministicFiniteAutomaton dfa = RegexAutomaton.ConvertToDfa(nfa);
+
+            /*
+            Debug.WriteLine($"tree: {tree}");
+            Debug.WriteLine($"nfa: {nfa}");
             Debug.WriteLine($"dfa: {dfa}");
+            */
 
             return dfa;
         }
@@ -40,7 +44,7 @@ namespace RegexNfaTest
 
             DeterministicFiniteAutomaton dfa = BuildTestDfa(regex);
 
-            Assert.AreEqual(dfa.Parse(input), true);
+            Assert.AreEqual(true, dfa.MatchEntire(input));
         }
 
         [TestMethod]
@@ -51,7 +55,35 @@ namespace RegexNfaTest
 
             DeterministicFiniteAutomaton dfa = BuildTestDfa(regex);
 
-            Assert.AreEqual(dfa.Parse(input), true);
+            Assert.AreEqual(true, dfa.MatchEntire(input));
+        }
+
+        [TestMethod]
+        public void Should_Not_Accept_Input_String_That_Is_Not_Part_Of_Language()
+        {
+            string regex = "s*aa(b|g)*k";
+            string input = "ssaaggg";
+
+            DeterministicFiniteAutomaton dfa = BuildTestDfa(regex);
+
+            Assert.AreEqual(false, dfa.MatchEntire(input));
+        }
+
+        [TestMethod]
+        public void Should_Accept_Correct_Number_Of_Substrings()
+        {
+            string regex = "(c|r)ats";
+            string input = "cats and rats";
+
+            DeterministicFiniteAutomaton dfa = BuildTestDfa(regex);
+            IList<string> matchingSubstrings = dfa.MatchSubstrings(input);
+
+            foreach(string s in matchingSubstrings)
+            {
+                Debug.WriteLine(s);
+            }
+
+            Assert.AreEqual(2, matchingSubstrings.Count);
         }
     }
 }
