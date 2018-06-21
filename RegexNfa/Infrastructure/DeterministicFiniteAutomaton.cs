@@ -1,5 +1,7 @@
 ﻿
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace RegexNfa.Infrastructure
@@ -63,7 +65,7 @@ namespace RegexNfa.Infrastructure
                 for (int j = i; j < input.Length; j++)
                 {
                     bool transitionExists = false;
-                    foreach(Transition t in currentState.FromTransitions.Values)
+                    foreach (Transition t in currentState.FromTransitions.Values)
                     {
                         if (t.Atom == input[j])
                         {
@@ -86,6 +88,105 @@ namespace RegexNfa.Infrastructure
             }
 
             return matchingSubstrings;
+        }
+
+        /// <summary>
+        /// Multiplies to DFA:s to create a product DFA that only matches input that <i>both</i> factor DFA:s would match
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static DeterministicFiniteAutomaton operator *(DeterministicFiniteAutomaton a, DeterministicFiniteAutomaton b)
+        {
+            // Start by intersecting the two alphabets 
+            SortedSet<char> alphabetA = a.Alphabet;
+            SortedSet<char> alphabetB = b.Alphabet;
+            SortedSet<char> newAlphabet = new SortedSet<char>((from atom1 in alphabetA
+                               select atom1).Intersect(from atom2 in alphabetB select atom2));
+
+            DeterministicFiniteAutomaton product = new DeterministicFiniteAutomaton
+            {
+                Alphabet = newAlphabet
+            };
+            Tuple<string, string> productStartStateSet = new Tuple<string, string>(a.StartState.Id, b.StartState.Id);
+            State productStartState = new State();
+            product.AddState(productStartState);
+            product.StartState = productStartState;
+
+            Dictionary<string, Tuple<string, string>> stateSets = new Dictionary<string, Tuple<string, string>>
+            {
+                { productStartState.Id, productStartStateSet }
+            };
+
+            Stack<string> unvisited = new Stack<string>();
+            unvisited.Push(productStartState.Id);
+
+            while (unvisited.Count > 0)
+            {
+                string fromStateId = unvisited.Pop();
+                Tuple<string, string> fromStateSet = stateSets[fromStateId];
+
+                foreach (char atom in product.Alphabet)
+                {
+                    State toState1 = null;
+                    State toState2 = null;
+                    foreach (Transition t1 in a.States[fromStateSet.Item1].FromTransitions.Values)
+                    {
+                        if (t1.Atom == atom)
+                        {
+                            toState1 = t1.ToState;
+                            break;
+                        }
+                    }
+                    foreach (Transition t2 in b.States[fromStateSet.Item2].FromTransitions.Values)
+                    {
+                        if (t2.Atom == atom)
+                        {
+                            toState2 = t2.ToState;
+                            break;
+                        }
+                    }
+
+                    if (toState1 == null || toState2 == null)
+                    {
+                        // One of the two transitions go to the empty state, meaning they will go to the empty state in the product as well
+                        continue;
+                    } else
+                    {
+                        Tuple<string, string> toStateSet = new Tuple<string, string>(toState1.Id, toState2.Id);
+                        string toStateId = null;
+                        foreach (KeyValuePair<string, Tuple<string, string>> entry in stateSets)
+                        {
+                            // Check if we have added this stateSet earlier
+                            if (entry.Value == toStateSet)
+                            {
+                                toStateId = entry.Key;
+                                break;
+                            }
+                        }
+
+                        if (toStateId == null)
+                        {
+                            // Add a new state in the product DFA
+                            State newState = new State
+                            {
+                                Accepting = (toState1.Accepting && toState2.Accepting)
+                            };
+
+                            toStateId = newState.Id;
+                            product.AddState(newState);
+                            stateSets.Add(toStateId, toStateSet);
+
+                            unvisited.Push(toStateId);
+                        }
+
+                        // Add transition to the new state
+                        product.AddTransition(product.States[fromStateId], product.States[toStateId], atom);
+                    }
+                }
+            }
+
+            return product;
         }
 
     }

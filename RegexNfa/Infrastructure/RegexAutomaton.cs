@@ -44,6 +44,7 @@ namespace RegexNfa.Infrastructure
             State dfaStartState = new State();
             dfa.AddState(dfaStartState);
             dfa.StartState = dfaStartState;
+            dfa.Alphabet = regex.Alphabet;
             //
 
             Dictionary<string, HashSet<string>> stateSets = new Dictionary<string, HashSet<string>>

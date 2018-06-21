@@ -10,10 +10,6 @@ namespace RegexNfa.Infrastructure
 {
     public class Automaton
     {
-        
-
-        
-
         public string Id { get; }
         public State StartState { get; set; }
         public SortedSet<char> Alphabet { get; set; }
@@ -33,12 +29,12 @@ namespace RegexNfa.Infrastructure
 
         public void AddToAlphabet(params char[] atoms)
         {
-            foreach(char c in atoms)
+            foreach (char c in atoms)
             {
                 Alphabet.Add(c);
             }
         }
-         
+
         public void AddState(State state)
         {
             if (!States.ContainsKey(state.Id))
@@ -82,7 +78,11 @@ namespace RegexNfa.Infrastructure
 
         public override string ToString()
         {
-            JObject json = new JObject(new JProperty("StartState", StartState.ToJson()),
+            JObject json = new JObject(new JProperty("Alphabet", new JArray(
+                                            from c in Alphabet
+                                            orderby c
+                                            select c.ToString())),
+                new JProperty("StartState", StartState.ToJson()),
                 new JProperty("States", new JArray(
                     from s in States.Values
                     orderby s.Id
@@ -98,5 +98,5 @@ namespace RegexNfa.Infrastructure
 
     }
 
-    
+
 }
