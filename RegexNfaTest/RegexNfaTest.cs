@@ -46,7 +46,7 @@ namespace RegexNfaTest
         [TestMethod]
         public void Should_Accept_Input_String_That_Is_Part_Of_Language_2()
         {
-            string regex = "asd*g(d)|(f)";
+            string regex = "asd*g(d|f)";
             string input = "asgf";
 
             DeterministicFiniteAutomaton dfa = BuildTestDfa(regex);

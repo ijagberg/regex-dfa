@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace RegexParser.Infrastructure
 {
@@ -11,8 +13,10 @@ namespace RegexParser.Infrastructure
         Concatenation,
         Empty
     }
+
     public class ParseTree
     {
+        [JsonConverter(typeof(StringEnumConverter))]
         public NodeType Type { get; set; }
     }
 
@@ -30,7 +34,8 @@ namespace RegexParser.Infrastructure
 
         public override string ToString()
         {
-            return $"Or ( {Left.ToString()} , {Right.ToString()} )";
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            return json;
         }
     }
 
@@ -48,7 +53,8 @@ namespace RegexParser.Infrastructure
 
         public override string ToString()
         {
-            return $"Concat ( {Left.ToString()} , {Right.ToString()} )";
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            return json;
         }
     }
 
@@ -64,7 +70,8 @@ namespace RegexParser.Infrastructure
 
         public override string ToString()
         {
-            return $"Star ( {Inner.ToString()} )";
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            return json;
         }
     }
 
@@ -80,7 +87,8 @@ namespace RegexParser.Infrastructure
 
         public override string ToString()
         {
-            return $"Question ( {Inner.ToString()} )";
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            return json;
         }
     }
 
@@ -96,7 +104,8 @@ namespace RegexParser.Infrastructure
 
         public override string ToString()
         {
-            return $"Plus ( {Inner.ToString()} )";
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            return json;
         }
     }
 
@@ -112,7 +121,8 @@ namespace RegexParser.Infrastructure
 
         public override string ToString()
         {
-            return $"Atom ( {Data} )";
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            return json;
         }
     }
 
@@ -125,7 +135,8 @@ namespace RegexParser.Infrastructure
 
         public override string ToString()
         {
-            return $"( EMPTY )";
+            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            return json;
         }
     }
 }

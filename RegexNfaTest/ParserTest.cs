@@ -2,6 +2,7 @@
 using RegexParser;
 using RegexParser.Infrastructure;
 using System;
+using System.Diagnostics;
 
 namespace RegexNfaTest
 {
@@ -10,15 +11,14 @@ namespace RegexNfaTest
     {
 
         [TestMethod]
-        public void SimpleRegexToTree()
+        public void Should_Output_Correct_ParseTree()
         {
-            string simpleRegex = "ga*";
+            string simpleRegex = "(asd*gd)|(f)";
+
             Parser parser = new Parser(simpleRegex);
             ParseTree result = parser.Parse();
-            var output = result.ToString();
-            Console.WriteLine(output);
-            Console.ReadKey();
-        }
 
+            Debug.WriteLine(result);
+        }
     }
 }
