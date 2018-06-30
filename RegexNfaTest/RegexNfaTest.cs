@@ -121,5 +121,22 @@ namespace RegexNfaTest
 
             Assert.AreEqual(false, product.MatchEntire(input));
         }
+
+        [TestMethod]
+        public void Should_Accept_Input_String_That_Is_Part_Of_Language_Negated()
+        {
+            string regex1 = "a*cb";
+            string input1 = "acb";
+            string input2 = "cba";
+
+            DeterministicFiniteAutomaton dfa1 = BuildTestDfa(regex1);
+            DeterministicFiniteAutomaton dfa2 = DeterministicFiniteAutomaton.Negate(dfa1);
+
+            Assert.AreEqual(true, dfa1.MatchEntire(input1));
+            Assert.AreEqual(false, dfa2.MatchEntire(input1));
+
+            Assert.AreEqual(false, dfa1.MatchEntire(input2));
+            Assert.AreEqual(true, dfa2.MatchEntire(input2));
+        }
     }
 }

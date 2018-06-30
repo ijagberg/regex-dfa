@@ -1,8 +1,6 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace RegexNfa.Infrastructure
 {
@@ -88,6 +86,23 @@ namespace RegexNfa.Infrastructure
             }
 
             return matchingSubstrings;
+        }
+
+        /// <summary>
+        /// Returns a new DFA which accepts any string that <i>isn't</i> accepted by the given DFA
+        /// </summary>
+        /// <param name="dfa"></param>
+        /// <returns></returns>
+        public static DeterministicFiniteAutomaton Negate(DeterministicFiniteAutomaton dfa)
+        {
+            DeterministicFiniteAutomaton negatedDfa = dfa;
+
+            foreach(State state in negatedDfa.States.Values)
+            {
+                state.Accepting = !state.Accepting;
+            }
+
+            return negatedDfa;
         }
 
         /// <summary>
