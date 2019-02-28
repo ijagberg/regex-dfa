@@ -9,4 +9,3 @@ name = "parse_tree"
 path = "src/parse_tree.rs"
 
 [dependencies]
-uuid = { version = "0.7", features = ["v4"] }
