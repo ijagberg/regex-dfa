@@ -1,11 +1,7 @@
 [package]
-name = "regex_nfa"
+name = "regex_dfa"
 version = "0.1.0"
 authors = ["Isak Jägberg <ijagberg@gmail.com>"]
 edition = "2018"
-
-[lib]
-name = "parse_tree"
-path = "src/parse_tree.rs"
 
 [dependencies]
