@@ -1,5 +1,3 @@
-pub mod parse_tree;
-
 #[derive(Debug)]
 pub enum ParseTree {
     Or {

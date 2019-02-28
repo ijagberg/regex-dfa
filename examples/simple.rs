@@ -1,4 +1,6 @@
-pub use parse_tree::ParseTree;
+extern crate parse_tree;
+
+use parse_tree::ParseTree;
 
 fn main() {
     println!("{:#?}", ParseTree::from("a*d"));

@@ -1,4 +1,4 @@
 [[package]]
-name = "regex-nfa"
+name = "regex_nfa"
 version = "0.1.0"
 
