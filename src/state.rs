@@ -3,8 +3,8 @@ use super::transition::Transition;
 #[derive(Debug)]
 pub struct State<'a> {
     accepting: bool,
-    from_transitions: Vec<&'a Transition>,
-    to_transitions: Vec<&'a Transition>,
+    from_transitions: Vec<&'a Transition<'a>>,
+    to_transitions: Vec<&'a Transition<'a>>,
 }
 
 impl<'a> State<'a> {
@@ -16,7 +16,7 @@ impl<'a> State<'a> {
         }
     }
 
-    fn add_from_transition(&mut self, from_transition: &'a Transition) {
+    pub fn add_from_transition(&mut self, from_transition: &'a Transition) {
         self.from_transitions.push(from_transition);
     }
 }

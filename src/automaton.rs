@@ -5,7 +5,7 @@ use super::transition::Transition;
 #[derive(Debug)]
 pub struct Automaton<'a> {
     states: Vec<State<'a>>,
-    transitions: Vec<Transition>,
+    transitions: Vec<Transition<'a>>,
     start_state: Option<&'a State<'a>>,
 }
 
@@ -18,8 +18,10 @@ impl<'a> Automaton<'a> {
         }
     }
 
-    fn add_transition(&mut self, from_state: &mut State, to_state: &mut State) {
-        
+    fn add_transition(&mut self, from_state: &'a mut State, to_state: &'a mut State, atom: char) {
+        let transition = Transition::new(atom, from_state, to_state);
+        self.transitions.push(transition);
+        from_state.add_from_transition(&transition);
     }
 
     pub fn from(parse_tree: ParseTree) {
