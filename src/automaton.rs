@@ -18,7 +18,7 @@ impl<'a> Automaton<'a> {
         }
     }
 
-    fn add_transition(&mut self, from_state: &'a mut State, to_state: &'a mut State, atom: char) {
+    fn add_transition(&mut self, from_state: &'a mut State<'a>, to_state: &'a mut State, atom: char) {
         let transition = Transition::new(atom, from_state, to_state);
         self.transitions.push(transition);
         from_state.add_from_transition(&transition);
