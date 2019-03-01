@@ -25,7 +25,7 @@ impl Automaton {
         match self.from_transitions.get(&from_state) {
             Some(to_states) => {
                 // There is some transition from from_state to some other state
-                if let Some(atoms) = to_states.get(&to_state) {
+                if let Some(mut atoms) = &mut to_states.get(&to_state) {
                     // There is already some transition from from_state to to_state
                     atoms.insert(atom);
                 } else {
