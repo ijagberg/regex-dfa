@@ -21,22 +21,22 @@ impl Automaton {
         }
     }
 
-    fn add_transition(&mut self, from_state: u32, to_state: u32, atom: char) {
+    fn add_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
         self.add_from_transition(from_state, to_state, atom);
         self.add_to_transition(from_state, to_state, atom);
     }
 
-    fn add_from_transition(&mut self, from_state: u32, to_state: u32, atom: char) {
+    fn add_from_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
         match self.from_transitions.get_mut(&from_state) {
             Some(to_states) => {
                 // There is some transition from from_state to some other state
                 if let Some(atoms) = to_states.get_mut(&to_state) {
                     // There is already some transition from from_state to to_state
-                    atoms.insert(Some(atom));
+                    atoms.insert(atom);
                 } else {
                     // There is no transition from from_state to to_state
                     let mut atoms_set = HashSet::new();
-                    atoms_set.insert(Some(atom));
+                    atoms_set.insert(atom);
                     to_states.insert(to_state, atoms_set); // Create empty atoms set
                 }
             }
@@ -44,24 +44,24 @@ impl Automaton {
                 // There is no transition from from_state to any other state
                 let mut to_states = HashMap::new();
                 let mut atoms_set = HashSet::new(); // atoms_set for transitions from from_state to to_state
-                atoms_set.insert(Some(atom));
+                atoms_set.insert(atom);
                 to_states.insert(to_state, atoms_set);
                 self.from_transitions.insert(from_state, to_states);
             }
         }
     }
 
-    fn add_to_transition(&mut self, from_state: u32, to_state:u32, atom:char) {
+    fn add_to_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
         match self.to_transitions.get_mut(&to_state) {
             Some(from_states) => {
                 // There is some transition from some other state to to_state
                 if let Some(atoms) = from_states.get_mut(&from_state) {
                     // There is already some transition from from_state to to_state
-                    atoms.insert(Some(atom));
+                    atoms.insert(atom);
                 } else {
                     // There is no transition from from_state to to_state
                     let mut atoms_set = HashSet::new();
-                    atoms_set.insert(Some(atom));
+                    atoms_set.insert(atom);
                     from_states.insert(from_state, atoms_set); // Create empty atoms set
                 }
             }
@@ -69,7 +69,7 @@ impl Automaton {
                 // There is no transition from any other state to to_state
                 let mut from_states = HashMap::new();
                 let mut atoms_set = HashSet::new(); // atoms_set for transitions from from_state to to_state
-                atoms_set.insert(Some(atom));
+                atoms_set.insert(atom);
                 from_states.insert(from_state, atoms_set);
                 self.to_transitions.insert(to_state, from_states);
             }
@@ -142,7 +142,7 @@ impl Automaton {
                 let end_state = atom_dfa.add_state();
                 atom_dfa.set_accepting(end_state, true);
                 atom_dfa.set_start_state(start_state);
-                atom_dfa.add_transition(start_state, end_state, *c);
+                atom_dfa.add_transition(start_state, end_state, Some(*c));
                 atom_dfa
             }
             ParseTree::Empty => {
