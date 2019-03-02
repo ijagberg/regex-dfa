@@ -8,7 +8,7 @@ There are two parts to the library. The first part is the ParseTree enum, which 
 
 # Example
 ```rust
-let parsed_input = ParseTree::from("Hello(, World)?!)
+let parsed_input = ParseTree::from("Hello(, World)?!")
 let dfa = Automaton::from(&parsed_input);
 assert!(dfa.match_whole("Hello, World!");
 assert!(dfa.match_whole("Hello!");
