@@ -26,6 +26,12 @@ impl Automaton {
         self.add_to_transition(from_state, to_state, atom);
     }
 
+    /// Returns the set of states that can be reached from a given starting state
+    /// without reading any input
+    /// 
+    /// # Arguments
+    /// 
+    /// * `start_state` - The state from which traversal begins
     fn epsilon_closure(&self, start_state: u32) -> HashSet<u32> {
         let mut reachable_states = HashSet::new();
         let mut unvisited_states = VecDeque::new();
