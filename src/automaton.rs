@@ -1,5 +1,5 @@
 use super::parse_tree::ParseTree;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Debug)]
 pub struct Automaton {
@@ -28,13 +28,15 @@ impl Automaton {
 
     fn epsilon_closure(&self, start_state: u32) -> HashSet<u32> {
         let mut reachable_states = HashSet::new();
-        reachable_states.insert(start_state);
-        while let Some(unvisited_state) = reachable_states.iter().next() {
+        let mut unvisited_states = VecDeque::new();
+        unvisited_states.push_back(start_state);
+        while let Some(unvisited_state) = unvisited_states.pop_front() {
             println!("Visiting {:?}", unvisited_state);
-            if let Some(from_transitions) = self.from_transitions.get(unvisited_state) {
+            reachable_states.insert(unvisited_state);
+            if let Some(from_transitions) = self.from_transitions.get(&unvisited_state) {
                 for (to_state, atoms_set) in from_transitions {
-                    if atoms_set.contains(&None) {
-                        reachable_states.insert(*to_state);
+                    if atoms_set.contains(&None) && !unvisited_states.contains(to_state) {
+                        unvisited_states.push_back(*to_state);
                     }
                 }
             }
@@ -335,8 +337,9 @@ mod tests {
     fn test_epsilon_closure() {
         let concatenation_tree = ParseTree::from("ab");
         let concatenation_dfa = Automaton::from(&concatenation_tree);
+        println!("concatenation_dfa: {:#?}", concatenation_dfa);
         let epsilon_closure =
             concatenation_dfa.epsilon_closure(concatenation_dfa.start_state.unwrap());
-        println!("{:#?}", epsilon_closure);
+        println!("epsilon_closure: {:#?}", epsilon_closure);
     }
 }
