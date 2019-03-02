@@ -130,11 +130,11 @@ impl Automaton {
             }
             ParseTree::Question { inner } => {
                 let inner_dfa = Automaton::from_tree(inner);
-                inner_dfa
+                Automaton::build_question(inner_dfa)
             }
             ParseTree::Plus { inner } => {
                 let inner_dfa = Automaton::from_tree(inner);
-                inner_dfa
+                Automaton::build_plus(inner_dfa)
             }
             ParseTree::Atom(c) => {
                 let mut atom_dfa = Automaton::new();
@@ -264,5 +264,47 @@ impl Automaton {
         star_dfa.set_accepting(inner_end_state, true);
 
         star_dfa
+    }
+
+    fn build_question(inner_dfa: Automaton) -> Automaton {
+        assert_eq!(1, inner_dfa.accepting_states.len());
+        let inner_start_state = inner_dfa.start_state.unwrap();
+        let inner_end_state = *inner_dfa.accepting_states.iter().next().unwrap();
+
+        let mut question_dfa = Automaton::new();
+        let inner_offset = question_dfa.states;
+        question_dfa.add_states_and_transitions(inner_dfa);
+
+        question_dfa.add_transition(
+            inner_start_state + inner_offset,
+            inner_end_state + inner_offset,
+            None,
+        );
+        question_dfa.set_start_state(inner_start_state);
+        question_dfa.clear_accepting();
+        question_dfa.set_accepting(inner_end_state, true);
+
+        question_dfa
+    }
+
+    fn build_plus(inner_dfa: Automaton) -> Automaton {
+        assert_eq!(1, inner_dfa.accepting_states.len());
+        let inner_start_state = inner_dfa.start_state.unwrap();
+        let inner_end_state = *inner_dfa.accepting_states.iter().next().unwrap();
+
+        let mut plus_dfa = Automaton::new();
+        let inner_offset = plus_dfa.states;
+        plus_dfa.add_states_and_transitions(inner_dfa);
+
+        plus_dfa.add_transition(
+            inner_end_state + inner_offset,
+            inner_start_state + inner_offset,
+            None,
+        );
+        plus_dfa.set_start_state(inner_start_state);
+        plus_dfa.clear_accepting();
+        plus_dfa.set_accepting(inner_end_state, true);
+
+        plus_dfa
     }
 }
