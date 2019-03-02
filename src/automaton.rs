@@ -26,6 +26,23 @@ impl Automaton {
         self.add_to_transition(from_state, to_state, atom);
     }
 
+    fn epsilon_closure(&self, start_state: u32) -> HashSet<u32> {
+        let mut reachable_states = HashSet::new();
+        reachable_states.insert(start_state);
+        while let Some(unvisited_state) = reachable_states.iter().next() {
+            println!("Visiting {:?}", unvisited_state);
+            if let Some(from_transitions) = self.from_transitions.get(unvisited_state) {
+                for (to_state, atoms_set) in from_transitions {
+                    if atoms_set.contains(&None) {
+                        reachable_states.insert(*to_state);
+                    }
+                }
+            }
+        }
+
+        reachable_states
+    }
+
     fn add_from_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
         match self.from_transitions.get_mut(&from_state) {
             Some(to_states) => {
@@ -308,5 +325,18 @@ impl Automaton {
         empty_dfa.set_start_state(start_state);
         empty_dfa.add_transition(start_state, end_state, None);
         empty_dfa
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_epsilon_closure() {
+        let concatenation_tree = ParseTree::from("ab");
+        let concatenation_dfa = Automaton::from(&concatenation_tree);
+        let epsilon_closure =
+            concatenation_dfa.epsilon_closure(concatenation_dfa.start_state.unwrap());
+        println!("{:#?}", epsilon_closure);
     }
 }
