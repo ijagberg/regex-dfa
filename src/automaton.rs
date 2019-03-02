@@ -22,6 +22,11 @@ impl Automaton {
     }
 
     fn add_transition(&mut self, from_state: u32, to_state: u32, atom: char) {
+        self.add_from_transition(from_state, to_state, atom);
+        self.add_to_transition(from_state, to_state, atom);
+    }
+
+    fn add_from_transition(&mut self, from_state: u32, to_state: u32, atom: char) {
         match self.from_transitions.get_mut(&from_state) {
             Some(to_states) => {
                 // There is some transition from from_state to some other state
@@ -46,9 +51,35 @@ impl Automaton {
         }
     }
 
+    fn add_to_transition(&mut self, from_state: u32, to_state:u32, atom:char) {
+        match self.to_transitions.get_mut(&to_state) {
+            Some(from_states) => {
+                // There is some transition from some other state to to_state
+                if let Some(atoms) = from_states.get_mut(&from_state) {
+                    // There is already some transition from from_state to to_state
+                    atoms.insert(atom);
+                } else {
+                    // There is no transition from from_state to to_state
+                    let mut atoms_set = HashSet::new();
+                    atoms_set.insert(atom);
+                    from_states.insert(from_state, atoms_set); // Create empty atoms set
+                }
+            }
+            None => {
+                // There is no transition from any other state to to_state
+                let mut from_states = HashMap::new();
+                let mut atoms_set = HashSet::new(); // atoms_set for transitions from from_state to to_state
+                atoms_set.insert(atom);
+                from_states.insert(from_state, atoms_set);
+                self.to_transitions.insert(to_state, from_states);
+            }
+        }
+    }
+
     fn add_state(&mut self) -> u32 {
+        let states_before_adding = self.states;
         self.states += 1;
-        self.states
+        states_before_adding
     }
 
     fn set_accepting(&mut self, state: u32, accepting: bool) {
@@ -67,18 +98,12 @@ impl Automaton {
         }
     }
 
-    pub fn from(parse_tree: ParseTree) {
-        Automaton::from_tree(&parse_tree);
+    pub fn from(parse_tree: &ParseTree) -> Automaton {
+        Automaton::from_tree(&parse_tree)
     }
 
     fn from_tree(parse_tree: &ParseTree) -> Automaton {
-        let mut dfa = Automaton {
-            states: 0,
-            from_transitions: HashMap::new(),
-            to_transitions: HashMap::new(),
-            start_state: None,
-            accepting_states: HashSet::new(),
-        };
+        let mut dfa = Automaton::new();
         match parse_tree {
             ParseTree::Concatenation { left, right } => {
                 let left_dfa = Automaton::from_tree(left);
