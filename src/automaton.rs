@@ -26,18 +26,26 @@ impl Automaton {
         self.add_to_transition(from_state, to_state, atom);
     }
 
+    fn minimize(&mut self) -> HashMap<u32, HashSet<u32>> {
+        let mut epsilon_closures = HashMap::new();
+        for s in 0..self.states {
+            epsilon_closures.insert(s, self.epsilon_closure(s));
+        }
+
+        epsilon_closures
+    }
+
     /// Returns the set of states that can be reached from a given starting state
     /// without reading any input
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `start_state` - The state from which traversal begins
     fn epsilon_closure(&self, start_state: u32) -> HashSet<u32> {
         let mut reachable_states = HashSet::new();
         let mut unvisited_states = VecDeque::new();
         unvisited_states.push_back(start_state);
         while let Some(unvisited_state) = unvisited_states.pop_front() {
-            println!("Visiting {:?}", unvisited_state);
             reachable_states.insert(unvisited_state);
             if let Some(from_transitions) = self.from_transitions.get(&unvisited_state) {
                 for (to_state, atoms_set) in from_transitions {
@@ -339,13 +347,25 @@ impl Automaton {
 mod tests {
     use super::*;
 
+    fn get_test_dfa(input: &str) -> Automaton {
+        let tree = ParseTree::from(input);
+        let dfa = Automaton::from(&tree);
+        dfa
+    }
+
     #[test]
     fn test_epsilon_closure() {
-        let concatenation_tree = ParseTree::from("ab");
-        let concatenation_dfa = Automaton::from(&concatenation_tree);
-        println!("concatenation_dfa: {:#?}", concatenation_dfa);
+        let concatenation_dfa = get_test_dfa("ab");
         let epsilon_closure =
             concatenation_dfa.epsilon_closure(concatenation_dfa.start_state.unwrap());
         println!("epsilon_closure: {:#?}", epsilon_closure);
+    }
+
+    #[test]
+    fn test_epsilon_closures() {
+        let mut test_dfa = get_test_dfa("a|b");
+        let epsilon_closures = test_dfa.minimize();
+        println!("test_dfa: {:#?}", test_dfa);
+        println!("epsilon_closures: {:#?}", epsilon_closures);
     }
 }
