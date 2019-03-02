@@ -111,7 +111,6 @@ impl Automaton {
     }
 
     fn from_tree(parse_tree: &ParseTree) -> Automaton {
-        let mut dfa = Automaton::new();
         match parse_tree {
             ParseTree::Concatenation { left, right } => {
                 let left_dfa = Automaton::from_tree(left);
