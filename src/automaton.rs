@@ -36,7 +36,7 @@ impl Automaton {
     }
 
     /// Returns the set of states that can be reached from a given starting state
-    /// without reading any input
+    /// without reading any input (only traversing epsilon-transitions)
     ///
     /// # Arguments
     ///
@@ -57,6 +57,28 @@ impl Automaton {
         }
 
         reachable_states
+    }
+
+    /// Returns the set of states that can be reached from a given composite state
+    /// by reading one given atom
+    /// 
+    /// # Arguments
+    /// 
+    /// * `from_state_set` - The composite state from which traversal begins
+    /// * `atom` - The atom via which we are allowed to traverse
+    fn atom_closure(&self, from_state_set: &HashSet<u32>, atom: char) -> HashSet<u32> {
+        let mut atom_closure = HashSet::new();
+        for from_state in from_state_set {
+            if let Some(from_transitions) = self.from_transitions.get(&from_state) {
+                for (to_state, atoms_set) in from_transitions {
+                    if atoms_set.contains(&Some(atom)) {
+                        atom_closure = atom_closure.union(&self.epsilon_closure(*to_state)).cloned().collect();
+                    }
+                }
+            }
+        }
+
+        atom_closure
     }
 
     fn add_from_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
@@ -367,5 +389,15 @@ mod tests {
         let epsilon_closures = test_dfa.minimize();
         println!("test_dfa: {:#?}", test_dfa);
         println!("epsilon_closures: {:#?}", epsilon_closures);
+    }
+
+    #[test]
+    fn test_atom_closure() {
+        let test_dfa = get_test_dfa("a|b");
+        let epsilon_closure = test_dfa.epsilon_closure(0);
+        let atom_closure = test_dfa.atom_closure(&epsilon_closure, 'a');
+        println!("test_dfa: {:#?}", test_dfa);
+        println!("epsilon_closure: {:#?}", epsilon_closure);
+        println!("atom_closure: {:#?}", atom_closure);
     }
 }
