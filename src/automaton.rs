@@ -11,7 +11,7 @@ pub struct Automaton {
 }
 
 impl Automaton {
-    fn new() -> Automaton {
+    pub fn new() -> Automaton {
         Automaton {
             states: 0,
             from_transitions: HashMap::new(),
