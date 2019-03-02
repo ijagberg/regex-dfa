@@ -22,10 +22,10 @@ impl Automaton {
     }
 
     fn add_transition(&mut self, from_state: u32, to_state: u32, atom: char) {
-        match self.from_transitions.get(&from_state) {
+        match self.from_transitions.get_mut(&from_state) {
             Some(to_states) => {
                 // There is some transition from from_state to some other state
-                if let Some(mut atoms) = &mut to_states.get(&to_state) {
+                if let Some(atoms) = to_states.get_mut(&to_state) {
                     // There is already some transition from from_state to to_state
                     atoms.insert(atom);
                 } else {
