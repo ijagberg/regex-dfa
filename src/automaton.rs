@@ -127,7 +127,7 @@ impl Automaton {
             }
             ParseTree::Star { inner } => {
                 let inner_dfa = Automaton::from_tree(inner);
-                inner_dfa
+                Automaton::build_star(inner_dfa)
             }
             ParseTree::Question { inner } => {
                 let inner_dfa = Automaton::from_tree(inner);
@@ -223,19 +223,47 @@ impl Automaton {
         or_dfa.add_states_and_transitions(right_dfa);
 
         // Add transitions from or_dfa to left_dfa
-        or_dfa.add_transition(or_start_state, left_start_state+left_offset, None);
-        or_dfa.add_transition(left_end_state+left_offset, or_end_state, None);
+        or_dfa.add_transition(or_start_state, left_start_state + left_offset, None);
+        or_dfa.add_transition(left_end_state + left_offset, or_end_state, None);
 
         // Add transitions from or_dfa to right_dfa
-        or_dfa.add_transition(or_start_state, right_start_state+right_offset, None);
-        or_dfa.add_transition(right_end_state+right_offset, or_end_state, None);
+        or_dfa.add_transition(or_start_state, right_start_state + right_offset, None);
+        or_dfa.add_transition(right_end_state + right_offset, or_end_state, None);
 
         // Set start and end states
         or_dfa.set_start_state(or_start_state);
         or_dfa.clear_accepting();
         or_dfa.set_accepting(or_end_state, true);
 
-
         or_dfa
+    }
+
+    fn build_star(inner_dfa: Automaton) -> Automaton {
+        assert_eq!(1, inner_dfa.accepting_states.len());
+        let inner_start_state = inner_dfa.start_state.unwrap();
+        let inner_end_state = *inner_dfa.accepting_states.iter().next().unwrap();
+
+        let mut star_dfa = Automaton::new();
+        let inner_offset = star_dfa.states;
+        star_dfa.add_states_and_transitions(inner_dfa);
+
+        // Add transitions from star to itself
+        star_dfa.add_transition(
+            inner_start_state + inner_offset,
+            inner_end_state + inner_offset,
+            None,
+        );
+        star_dfa.add_transition(
+            inner_end_state + inner_offset,
+            inner_start_state + inner_offset,
+            None,
+        );
+
+        // Set start and end states
+        star_dfa.set_start_state(inner_start_state);
+        star_dfa.clear_accepting();
+        star_dfa.set_accepting(inner_end_state, true);
+
+        star_dfa
     }
 }
