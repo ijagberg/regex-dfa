@@ -115,13 +115,11 @@ impl Automaton {
             ParseTree::Concatenation { left, right } => {
                 let left_dfa = Automaton::from_tree(left);
                 let right_dfa = Automaton::from_tree(right);
-
                 Automaton::build_concatenation(left_dfa, right_dfa)
             }
             ParseTree::Or { left, right } => {
                 let left_dfa = Automaton::from_tree(left);
                 let right_dfa = Automaton::from_tree(right);
-
                 Automaton::build_or(left_dfa, right_dfa)
             }
             ParseTree::Star { inner } => {
@@ -136,24 +134,8 @@ impl Automaton {
                 let inner_dfa = Automaton::from_tree(inner);
                 Automaton::build_plus(inner_dfa)
             }
-            ParseTree::Atom(c) => {
-                let mut atom_dfa = Automaton::new();
-                let start_state = atom_dfa.add_state();
-                let end_state = atom_dfa.add_state();
-                atom_dfa.set_accepting(end_state, true);
-                atom_dfa.set_start_state(start_state);
-                atom_dfa.add_transition(start_state, end_state, Some(*c));
-                atom_dfa
-            }
-            ParseTree::Empty => {
-                let mut empty_dfa = Automaton::new();
-                let start_state = empty_dfa.add_state();
-                let end_state = empty_dfa.add_state();
-                empty_dfa.set_accepting(end_state, true);
-                empty_dfa.set_start_state(start_state);
-                empty_dfa.add_transition(start_state, end_state, None);
-                empty_dfa
-            }
+            ParseTree::Atom(c) => Automaton::build_atom(*c),
+            ParseTree::Empty => Automaton::build_empty(),
         }
     }
 
@@ -306,5 +288,25 @@ impl Automaton {
         plus_dfa.set_accepting(inner_end_state, true);
 
         plus_dfa
+    }
+
+    fn build_atom(c: char) -> Automaton {
+        let mut atom_dfa = Automaton::new();
+        let start_state = atom_dfa.add_state();
+        let end_state = atom_dfa.add_state();
+        atom_dfa.set_accepting(end_state, true);
+        atom_dfa.set_start_state(start_state);
+        atom_dfa.add_transition(start_state, end_state, Some(c));
+        atom_dfa
+    }
+
+    fn build_empty() -> Automaton {
+        let mut empty_dfa = Automaton::new();
+        let start_state = empty_dfa.add_state();
+        let end_state = empty_dfa.add_state();
+        empty_dfa.set_accepting(end_state, true);
+        empty_dfa.set_start_state(start_state);
+        empty_dfa.add_transition(start_state, end_state, None);
+        empty_dfa
     }
 }
