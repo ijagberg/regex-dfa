@@ -4,8 +4,8 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug)]
 pub struct Automaton {
     states: u32,
-    from_transitions: HashMap<u32, HashMap<u32, HashSet<char>>>,
-    to_transitions: HashMap<u32, HashMap<u32, HashSet<char>>>,
+    from_transitions: HashMap<u32, HashMap<u32, HashSet<Option<char>>>>,
+    to_transitions: HashMap<u32, HashMap<u32, HashSet<Option<char>>>>,
     start_state: Option<u32>,
     accepting_states: HashSet<u32>,
 }
@@ -32,11 +32,11 @@ impl Automaton {
                 // There is some transition from from_state to some other state
                 if let Some(atoms) = to_states.get_mut(&to_state) {
                     // There is already some transition from from_state to to_state
-                    atoms.insert(atom);
+                    atoms.insert(Some(atom));
                 } else {
                     // There is no transition from from_state to to_state
                     let mut atoms_set = HashSet::new();
-                    atoms_set.insert(atom);
+                    atoms_set.insert(Some(atom));
                     to_states.insert(to_state, atoms_set); // Create empty atoms set
                 }
             }
@@ -44,7 +44,7 @@ impl Automaton {
                 // There is no transition from from_state to any other state
                 let mut to_states = HashMap::new();
                 let mut atoms_set = HashSet::new(); // atoms_set for transitions from from_state to to_state
-                atoms_set.insert(atom);
+                atoms_set.insert(Some(atom));
                 to_states.insert(to_state, atoms_set);
                 self.from_transitions.insert(from_state, to_states);
             }
@@ -57,11 +57,11 @@ impl Automaton {
                 // There is some transition from some other state to to_state
                 if let Some(atoms) = from_states.get_mut(&from_state) {
                     // There is already some transition from from_state to to_state
-                    atoms.insert(atom);
+                    atoms.insert(Some(atom));
                 } else {
                     // There is no transition from from_state to to_state
                     let mut atoms_set = HashSet::new();
-                    atoms_set.insert(atom);
+                    atoms_set.insert(Some(atom));
                     from_states.insert(from_state, atoms_set); // Create empty atoms set
                 }
             }
@@ -69,7 +69,7 @@ impl Automaton {
                 // There is no transition from any other state to to_state
                 let mut from_states = HashMap::new();
                 let mut atoms_set = HashSet::new(); // atoms_set for transitions from from_state to to_state
-                atoms_set.insert(atom);
+                atoms_set.insert(Some(atom));
                 from_states.insert(from_state, atoms_set);
                 self.to_transitions.insert(to_state, from_states);
             }
