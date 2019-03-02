@@ -8,6 +8,7 @@ pub struct Automaton {
     to_transitions: HashMap<u32, HashMap<u32, HashSet<Option<char>>>>,
     start_state: Option<u32>,
     accepting_states: HashSet<u32>,
+    alphabet: HashSet<char>,
 }
 
 impl Automaton {
@@ -18,21 +19,21 @@ impl Automaton {
             to_transitions: HashMap::new(),
             start_state: None,
             accepting_states: HashSet::new(),
+            alphabet: HashSet::new(),
         }
     }
 
-    fn add_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
-        self.add_from_transition(from_state, to_state, atom);
-        self.add_to_transition(from_state, to_state, atom);
-    }
-
-    fn minimize(&mut self) -> HashMap<u32, HashSet<u32>> {
-        let mut epsilon_closures = HashMap::new();
-        for s in 0..self.states {
-            epsilon_closures.insert(s, self.epsilon_closure(s));
+    fn minimize(&mut self) {
+        match self.start_state {
+            Some(start_state) => {
+                let mut unvisited_state_sets: VecDeque<HashSet<u32>> = VecDeque::new();
+                unvisited_state_sets.push_back(self.epsilon_closure(start_state));
+                
+            }
+            None => {
+                panic!("No start state defined for automaton");
+            }
         }
-
-        epsilon_closures
     }
 
     /// Returns the set of states that can be reached from a given starting state
@@ -59,11 +60,23 @@ impl Automaton {
         reachable_states
     }
 
+    fn epsilon_closures(&self, from_state_set: HashSet<u32>) -> HashSet<u32> {
+        let mut epsilon_closures = HashSet::new();
+        for s in 0..self.states {
+            epsilon_closures = epsilon_closures
+                .union(&self.epsilon_closure(s))
+                .cloned()
+                .collect();
+        }
+
+        epsilon_closures
+    }
+
     /// Returns the set of states that can be reached from a given composite state
     /// by reading one given atom
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `from_state_set` - The composite state from which traversal begins
     /// * `atom` - The atom via which we are allowed to traverse
     fn atom_closure(&self, from_state_set: &HashSet<u32>, atom: char) -> HashSet<u32> {
@@ -72,7 +85,10 @@ impl Automaton {
             if let Some(from_transitions) = self.from_transitions.get(&from_state) {
                 for (to_state, atoms_set) in from_transitions {
                     if atoms_set.contains(&Some(atom)) {
-                        atom_closure = atom_closure.union(&self.epsilon_closure(*to_state)).cloned().collect();
+                        atom_closure = atom_closure
+                            .union(&self.epsilon_closure(*to_state))
+                            .cloned()
+                            .collect();
                     }
                 }
             }
@@ -81,12 +97,34 @@ impl Automaton {
         atom_closure
     }
 
+    fn add_states_and_transitions(&mut self, other_dfa: Automaton) {
+        let states_offset = self.states;
+
+        // Add states and transitions to concatenated dfa
+        self.add_states(other_dfa.states);
+        for from_transition in other_dfa.from_transitions {
+            let from_state = from_transition.0;
+            for to_states in from_transition.1 {
+                let to_state = to_states.0;
+                for atom in to_states.1 {
+                    self.add_transition(from_state + states_offset, to_state + states_offset, atom);
+                }
+            }
+        }
+    }
+
+    fn add_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
+        self.add_from_transition(from_state, to_state, atom);
+        self.add_to_transition(from_state, to_state, atom);
+    }
+
     fn add_from_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
         match self.from_transitions.get_mut(&from_state) {
             Some(to_states) => {
                 // There is some transition from from_state to some other state
                 if let Some(atoms) = to_states.get_mut(&to_state) {
                     // There is already some transition from from_state to to_state
+                    self.alphabet.insert(atom.unwrap());
                     atoms.insert(atom);
                 } else {
                     // There is no transition from from_state to to_state
@@ -191,22 +229,6 @@ impl Automaton {
             }
             ParseTree::Atom(c) => Automaton::build_atom(*c),
             ParseTree::Empty => Automaton::build_empty(),
-        }
-    }
-
-    fn add_states_and_transitions(&mut self, other_dfa: Automaton) {
-        let states_offset = self.states;
-
-        // Add states and transitions to concatenated dfa
-        self.add_states(other_dfa.states);
-        for from_transition in other_dfa.from_transitions {
-            let from_state = from_transition.0;
-            for to_states in from_transition.1 {
-                let to_state = to_states.0;
-                for atom in to_states.1 {
-                    self.add_transition(from_state + states_offset, to_state + states_offset, atom);
-                }
-            }
         }
     }
 
