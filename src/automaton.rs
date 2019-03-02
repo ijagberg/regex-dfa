@@ -110,6 +110,11 @@ impl Automaton {
                 let right_dfa = Automaton::from_tree(right);
                 let concatenation_dfa = Automaton::new();
 
+                assert_eq!(1, left_dfa.accepting_states.len());
+                assert_eq!(1, right_dfa.accepting_states.len());
+
+                let left_dfa_end_state = left_dfa.accepting_states.iter().next().unwrap();
+
                 concatenation_dfa
             }
             ParseTree::Or { left, right } => {
@@ -141,7 +146,7 @@ impl Automaton {
                 atom_dfa
             }
             ParseTree::Empty => {
-                let mut empty_dfa = Automaton::new();
+                let empty_dfa = Automaton::new();
                 empty_dfa
             }
         }
