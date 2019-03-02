@@ -82,6 +82,14 @@ impl Automaton {
         states_before_adding
     }
 
+    fn add_states(&mut self, states: u32) {
+        self.states += states;
+    }
+
+    fn clear_accepting(&mut self) {
+        self.accepting_states.clear();
+    }
+
     fn set_accepting(&mut self, state: u32, accepting: bool) {
         if state < self.states {
             if accepting {
@@ -108,14 +116,8 @@ impl Automaton {
             ParseTree::Concatenation { left, right } => {
                 let left_dfa = Automaton::from_tree(left);
                 let right_dfa = Automaton::from_tree(right);
-                let concatenation_dfa = Automaton::new();
 
-                assert_eq!(1, left_dfa.accepting_states.len());
-                assert_eq!(1, right_dfa.accepting_states.len());
-
-                let left_dfa_end_state = left_dfa.accepting_states.iter().next().unwrap();
-
-                concatenation_dfa
+                Automaton::build_concatenation(left_dfa, right_dfa)
             }
             ParseTree::Or { left, right } => {
                 let left_dfa = Automaton::from_tree(left);
@@ -146,9 +148,53 @@ impl Automaton {
                 atom_dfa
             }
             ParseTree::Empty => {
-                let empty_dfa = Automaton::new();
+                let mut empty_dfa = Automaton::new();
+                let start_state = empty_dfa.add_state();
+                let end_state = empty_dfa.add_state();
+                empty_dfa.set_accepting(end_state, true);
+                empty_dfa.set_start_state(start_state);
+                empty_dfa.add_transition(start_state, end_state, None);
                 empty_dfa
             }
         }
+    }
+
+    fn build_concatenation(left_dfa: Automaton, right_dfa: Automaton) -> Automaton {
+        assert_eq!(1, left_dfa.accepting_states.len());
+        assert_eq!(1, right_dfa.accepting_states.len());
+
+        let left_start_state = left_dfa.start_state.unwrap();
+        let left_end_state = *left_dfa.accepting_states.iter().next().unwrap();
+        let right_start_state = right_dfa.start_state.unwrap();
+        let right_end_state = *right_dfa.accepting_states.iter().next().unwrap();
+
+        let mut concatenation_dfa = left_dfa;
+        let states_offset = concatenation_dfa.states;
+
+        // Add states and transitions to concatenated dfa
+        concatenation_dfa.add_states(right_dfa.states);
+        for from_transition in right_dfa.from_transitions {
+            let from_state = from_transition.0;
+            for to_states in from_transition.1 {
+                let to_state = to_states.0;
+                for atom in to_states.1 {
+                    concatenation_dfa.add_transition(
+                        from_state + states_offset,
+                        to_state + states_offset,
+                        atom,
+                    );
+                }
+            }
+        }
+
+        // Add transition between left and right dfa
+        concatenation_dfa.add_transition(left_end_state, right_start_state + states_offset, None);
+
+        // Set start and end states
+        concatenation_dfa.set_start_state(left_start_state);
+        concatenation_dfa.clear_accepting();
+        concatenation_dfa.set_accepting(right_end_state + states_offset, true);
+
+        concatenation_dfa
     }
 }
