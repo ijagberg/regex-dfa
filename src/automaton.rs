@@ -43,6 +43,8 @@ impl Automaton {
             Some(start_state) => {
                 let mut unvisited_state_sets: VecDeque<HashSet<u32>> = VecDeque::new();
                 let mut visited_state_set_ids: HashSet<String> = HashSet::new();
+
+                
             }
             None => {}
         }
