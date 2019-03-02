@@ -34,11 +34,10 @@ impl ParseTree {
             Some('|') => {
                 iter.next();
                 let next_term_tree = ParseTree::build_tree(&mut iter);
-                let or_tree = ParseTree::Or {
+                ParseTree::Or {
                     left: Box::new(tree),
                     right: Box::new(next_term_tree),
-                };
-                or_tree
+                }
             }
             _ => tree,
         }
@@ -87,14 +86,8 @@ impl ParseTree {
                     panic!("Invalid regular expression, expected a ')' to close a '('");
                 }
             }
-            Some('\\') => {
-                let atom_tree = ParseTree::Atom('\\');
-                atom_tree
-            }
-            Some(c) => {
-                let atom_tree = ParseTree::Atom(*c);
-                atom_tree
-            }
+            Some('\\') => ParseTree::Atom('\\'),
+            Some(c) => ParseTree::Atom(*c),
             None => panic!("Invalid regular expression"),
         }
     }
