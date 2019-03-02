@@ -23,16 +23,28 @@ impl Automaton {
         }
     }
 
+    // TODO: figure out a better way to use a set as a key
+    fn get_unique_id_for_set(set: HashSet<u32>) -> String {
+        let mut set_as_vector = Vec::new();
+        for i in set {
+            set_as_vector.push(i);
+        }
+        set_as_vector.sort();
+        let mut unique_id = "".to_string();
+        for i in set_as_vector {
+            unique_id = format!("{},{}", unique_id, i.to_string());
+        }
+
+        unique_id
+    }
+
     fn minimize(&mut self) {
         match self.start_state {
             Some(start_state) => {
                 let mut unvisited_state_sets: VecDeque<HashSet<u32>> = VecDeque::new();
-                unvisited_state_sets.push_back(self.epsilon_closure(start_state));
-                
+                let mut visited_state_set_ids: HashSet<String> = HashSet::new();
             }
-            None => {
-                panic!("No start state defined for automaton");
-            }
+            None => {}
         }
     }
 
@@ -421,5 +433,15 @@ mod tests {
         println!("test_dfa: {:#?}", test_dfa);
         println!("epsilon_closure: {:#?}", epsilon_closure);
         println!("atom_closure: {:#?}", atom_closure);
+    }
+
+    #[test]
+    fn test_unique_id_for_set() {
+        let mut test_set = HashSet::new();
+        test_set.insert(3);
+        test_set.insert(1);
+        test_set.insert(2);
+        test_set.insert(1);
+        println!("{}", Automaton::get_unique_id_for_set(test_set));
     }
 }
