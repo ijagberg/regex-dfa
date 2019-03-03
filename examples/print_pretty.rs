@@ -7,5 +7,8 @@ use regex_dfa::plot::*;
 fn main() {
     let automaton = Automaton::from(&ParseTree::from("(a|b)*abb"));
     automaton_pretty_print(&automaton);
-    automaton_pretty_print(&automaton.as_dfa());
+    let dfa = automaton.as_dfa();
+    automaton_pretty_print(&dfa);
+    let marked_states = dfa.get_marked_states_table();
+    println!("{:#?}", marked_states);
 }
