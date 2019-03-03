@@ -24,7 +24,7 @@ impl Automaton {
     }
 
     // TODO: figure out a better way to use a set as a key
-    fn get_unique_id_for_set(set: HashSet<u32>) -> String {
+    fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
         let mut set_as_vector = Vec::new();
         for i in set {
             set_as_vector.push(i);
@@ -38,15 +38,78 @@ impl Automaton {
         unique_id
     }
 
-    fn minimize(&mut self) {
+    fn get_composite_accepting(&self, composite: &HashSet<u32>) -> bool {
+        for s in composite {
+            if !self.accepting_states.contains(&s) {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn as_dfa(&self) -> Automaton {
         match self.start_state {
             Some(start_state) => {
-                let mut unvisited_state_sets: VecDeque<HashSet<u32>> = VecDeque::new();
-                let mut visited_state_set_ids: HashSet<String> = HashSet::new();
+                println!("Alphabet: {:?}", self.alphabet);
+                let mut minimized_dfa = Automaton::new();
+                let mut comp_to_dfa = HashMap::new();
 
-                
+                let mut visited_comp = HashSet::new();
+                let mut to_visit_comp = VecDeque::new();
+
+                let comp_start_state = self.epsilon_closure(start_state);
+
+                to_visit_comp.push_back(comp_start_state.clone());
+                while let Some(from_comp) = to_visit_comp.pop_front() {
+                    println!("Visiting {:?}", from_comp);
+                    let from_comp_id = Automaton::get_unique_id_for_set(&from_comp);
+                    visited_comp.insert(from_comp_id.clone());
+                    let from_dfa_id = match comp_to_dfa.get(&from_comp_id) {
+                        Some(dfa_id) => *dfa_id,
+                        None => {
+                            let dfa_id = minimized_dfa.add_state();
+                            comp_to_dfa.insert(from_comp_id, dfa_id);
+                            dfa_id
+                        }
+                    };
+                    for c in &self.alphabet {
+                        let to_comp = self.atom_closure(&from_comp, *c);
+                        println!("Traversing via {} takes you to {:?}", *c, to_comp);
+                        if to_comp.len() > 0 {
+                            let to_comp_id = Automaton::get_unique_id_for_set(&to_comp);
+                            if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp_id) {
+                                // Composite state is already in the minimized dfa
+                                minimized_dfa.add_transition(from_dfa_id, *to_dfa_id, Some(*c));
+                            } else {
+                                // Composite state is not in the minimized dfa
+                                let to_dfa_id = minimized_dfa.add_state();
+                                println!(
+                                    "Adding a new state for {:?} with id {}",
+                                    to_comp, to_dfa_id
+                                );
+                                minimized_dfa.set_accepting(
+                                    to_dfa_id,
+                                    self.get_composite_accepting(&to_comp),
+                                );
+                                to_visit_comp.push_back(to_comp);
+                                comp_to_dfa.insert(to_comp_id, to_dfa_id);
+                                minimized_dfa.add_transition(from_dfa_id, to_dfa_id, Some(*c));
+                            }
+                        }
+                    }
+                }
+
+                minimized_dfa.set_start_state(
+                    *comp_to_dfa
+                        .get(&Automaton::get_unique_id_for_set(&comp_start_state))
+                        .unwrap(),
+                );
+
+                minimized_dfa
             }
-            None => {}
+            None => {
+                panic!("No starting state");
+            }
         }
     }
 
@@ -128,6 +191,9 @@ impl Automaton {
     }
 
     fn add_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
+        if let Some(c) = atom {
+            self.alphabet.insert(c);
+        }
         self.add_from_transition(from_state, to_state, atom);
         self.add_to_transition(from_state, to_state, atom);
     }
@@ -138,7 +204,6 @@ impl Automaton {
                 // There is some transition from from_state to some other state
                 if let Some(atoms) = to_states.get_mut(&to_state) {
                     // There is already some transition from from_state to to_state
-                    self.alphabet.insert(atom.unwrap());
                     atoms.insert(atom);
                 } else {
                     // There is no transition from from_state to to_state
@@ -399,51 +464,5 @@ impl Automaton {
         empty_dfa.set_start_state(start_state);
         empty_dfa.add_transition(start_state, end_state, None);
         empty_dfa
-    }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn get_test_dfa(input: &str) -> Automaton {
-        let tree = ParseTree::from(input);
-        let dfa = Automaton::from(&tree);
-        dfa
-    }
-
-    #[test]
-    fn test_epsilon_closure() {
-        let concatenation_dfa = get_test_dfa("ab");
-        let epsilon_closure =
-            concatenation_dfa.epsilon_closure(concatenation_dfa.start_state.unwrap());
-        println!("epsilon_closure: {:#?}", epsilon_closure);
-    }
-
-    #[test]
-    fn test_epsilon_closures() {
-        let mut test_dfa = get_test_dfa("a|b");
-        let epsilon_closures = test_dfa.minimize();
-        println!("test_dfa: {:#?}", test_dfa);
-        println!("epsilon_closures: {:#?}", epsilon_closures);
-    }
-
-    #[test]
-    fn test_atom_closure() {
-        let test_dfa = get_test_dfa("a|b");
-        let epsilon_closure = test_dfa.epsilon_closure(0);
-        let atom_closure = test_dfa.atom_closure(&epsilon_closure, 'a');
-        println!("test_dfa: {:#?}", test_dfa);
-        println!("epsilon_closure: {:#?}", epsilon_closure);
-        println!("atom_closure: {:#?}", atom_closure);
-    }
-
-    #[test]
-    fn test_unique_id_for_set() {
-        let mut test_set = HashSet::new();
-        test_set.insert(3);
-        test_set.insert(1);
-        test_set.insert(2);
-        test_set.insert(1);
-        println!("{}", Automaton::get_unique_id_for_set(test_set));
     }
 }
