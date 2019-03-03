@@ -40,9 +40,9 @@ impl Automaton {
     }
 
     /// Returns true if every state in the given composite state is accepting
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `composite` - The composite state set to check
     fn get_composite_accepting(&self, composite: &HashSet<u32>) -> bool {
         for s in composite {
@@ -116,6 +116,18 @@ impl Automaton {
             }
             None => {
                 panic!("No starting state");
+            }
+        }
+    }
+
+    pub fn as_minimized_dfa(&self) {
+        let mut marked_states_table: Vec<Vec<bool>> = Vec::new();
+        for non_accepting_state in 0..self.states {
+            if !self.accepting_states.contains(&non_accepting_state) {
+                for accepting_state in &self.accepting_states {
+                    marked_states_table[non_accepting_state as usize]
+                        [(*accepting_state) as usize] = true;
+                }
             }
         }
     }
