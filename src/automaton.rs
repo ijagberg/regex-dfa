@@ -130,6 +130,38 @@ impl Automaton {
                 }
             }
         }
+
+        let mut marked_a_pair = true;
+        while marked_a_pair {
+            marked_a_pair = false;
+
+            // Choose a pair of states
+            for s1 in 0..self.states {
+                for s2 in 0..self.states {
+                    if !marked_states_table[s1 as usize][s2 as usize] {
+                        // Check if there is any transition from (s1, s2) to a marked pair
+                        for c in &self.alphabet {
+                            let s1_to_state = self.traverse_from(&s1, c);
+                            let s2_to_state = self.traverse_from(&s2, c);
+                            if marked_states_table[s1_to_state as usize][s2_to_state as usize] {
+                                
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn traverse_from(&self, from_state: &u32, atom: &char) -> Option<u32> {
+        if let Some(transitions) = self.from_transitions.get(from_state) {
+            for (to_state, atoms_set) in transitions {
+                if atoms_set.contains(&Some(*atom)) {
+                    return Some(*to_state);
+                }
+            }
+        }
+        None
     }
 
     /// Returns the set of states that can be reached from a given starting state
