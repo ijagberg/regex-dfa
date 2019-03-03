@@ -137,18 +137,6 @@ impl Automaton {
         reachable_states
     }
 
-    fn epsilon_closures(&self, from_state_set: HashSet<u32>) -> HashSet<u32> {
-        let mut epsilon_closures = HashSet::new();
-        for s in 0..self.states {
-            epsilon_closures = epsilon_closures
-                .union(&self.epsilon_closure(s))
-                .cloned()
-                .collect();
-        }
-
-        epsilon_closures
-    }
-
     /// Returns the set of states that can be reached from a given composite state
     /// by reading one given atom
     ///
