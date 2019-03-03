@@ -67,6 +67,7 @@ impl Automaton {
                 let comp_start_state = self.epsilon_closure(start_state);
 
                 to_visit_comp.push_back(comp_start_state.clone());
+                println!("Starting at composite: {:?}", comp_start_state);
                 while let Some(from_comp) = to_visit_comp.pop_front() {
                     println!("Visiting {:?}", from_comp);
                     let from_comp_id = Automaton::get_unique_id_for_set(&from_comp);
@@ -122,10 +123,11 @@ impl Automaton {
 
     pub fn as_minimized_dfa(&self) {
         let x = self.get_marked_states_table();
-        let mut equivalent_composite_states: Vec<HashSet<u32>> = Vec::new();
+
         for s1 in 0..self.states {
-            for s2 in 0..self.states {
+            for s2 in 0..s1 {
                 if !x[s1 as usize][s2 as usize] {
+                    // (s1, s2) is unmarked, find its equivalences
 
                 }
             }
@@ -149,10 +151,9 @@ impl Automaton {
 
             // Choose a pair of states
             'mark: for s1 in 0..self.states {
-                for s2 in 0..self.states {
+                for s2 in 0..s1 {
                     if !marked_states_table[s1 as usize][s2 as usize] {
                         // Check if there is any transition from (s1, s2) to a marked pair
-                        let mark_this_pair = false;
                         for c in &self.alphabet {
                             if let Some(s1_to_state) = self.traverse_from(&s1, c) {
                                 if let Some(s2_to_state) = self.traverse_from(&s2, c) {
@@ -197,9 +198,10 @@ impl Automaton {
         while let Some(unvisited_state) = unvisited_states.pop_front() {
             reachable_states.insert(unvisited_state);
             if let Some(from_transitions) = self.from_transitions.get(&unvisited_state) {
-                for (to_state, atoms_set) in from_transitions {
+                'find_to_state: for (to_state, atoms_set) in from_transitions {
                     if atoms_set.contains(&None) && !unvisited_states.contains(to_state) {
                         unvisited_states.push_back(*to_state);
+                        break 'find_to_state;
                     }
                 }
             }
