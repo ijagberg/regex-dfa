@@ -46,11 +46,11 @@ impl Automaton {
     /// * `composite` - The composite state set to check
     fn get_composite_accepting(&self, composite: &HashSet<u32>) -> bool {
         for s in composite {
-            if !self.accepting_states.contains(&s) {
-                return false;
+            if self.accepting_states.contains(&s) {
+                return true;
             }
         }
-        true
+        false
     }
 
     /// Returns a dfa simulating the same functionality of this automaton
@@ -121,7 +121,20 @@ impl Automaton {
     }
 
     pub fn as_minimized_dfa(&self) {
-        let mut marked_states_table: Vec<Vec<bool>> = Vec::new();
+        let x = self.get_marked_states_table();
+        let mut equivalent_composite_states: Vec<HashSet<u32>> = Vec::new();
+        for s1 in 0..self.states {
+            for s2 in 0..self.states {
+                if !x[s1 as usize][s2 as usize] {
+
+                }
+            }
+        }
+    }
+
+    fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
+        let mut marked_states_table: Vec<Vec<bool>> =
+            vec![vec![false; self.states as usize]; self.states as usize];
         for non_accepting_state in 0..self.states {
             if !self.accepting_states.contains(&non_accepting_state) {
                 for accepting_state in &self.accepting_states {
@@ -130,27 +143,34 @@ impl Automaton {
                 }
             }
         }
-
         let mut marked_a_pair = true;
         while marked_a_pair {
             marked_a_pair = false;
 
             // Choose a pair of states
-            for s1 in 0..self.states {
+            'mark: for s1 in 0..self.states {
                 for s2 in 0..self.states {
                     if !marked_states_table[s1 as usize][s2 as usize] {
                         // Check if there is any transition from (s1, s2) to a marked pair
+                        let mark_this_pair = false;
                         for c in &self.alphabet {
-                            let s1_to_state = self.traverse_from(&s1, c);
-                            let s2_to_state = self.traverse_from(&s2, c);
-                            if marked_states_table[s1_to_state as usize][s2_to_state as usize] {
-                                
+                            if let Some(s1_to_state) = self.traverse_from(&s1, c) {
+                                if let Some(s2_to_state) = self.traverse_from(&s2, c) {
+                                    if marked_states_table[s1_to_state as usize]
+                                        [s2_to_state as usize]
+                                    {
+                                        marked_states_table[s1 as usize][s2 as usize] = true;
+                                        marked_a_pair = true;
+                                        break 'mark;
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        marked_states_table
     }
 
     pub fn traverse_from(&self, from_state: &u32, atom: &char) -> Option<u32> {
