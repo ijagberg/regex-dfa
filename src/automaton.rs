@@ -122,12 +122,20 @@ impl Automaton {
 
     pub fn as_minimized_dfa(&self) {
         let marked_states = self.get_marked_states_table();
-        let mut equivalent_composite_states: Vec<HashSet<u32>> = Vec::new();
+        let mut equivalent_composite_states: HashMap<String, HashSet<u32>> = HashMap::new();
         for s1 in 0..self.states {
-            for s2 in 0..s1 {
-                if !marked_states[s1 as usize][s2 as usize] {}
+            let mut equivalent_to_s1 = HashSet::new();
+            for s2 in 0..self.states {
+                if !marked_states[s1 as usize][s2 as usize] {
+                    equivalent_to_s1.insert(s2);
+                }
             }
+            equivalent_composite_states.insert(
+                Automaton::get_unique_id_for_set(&equivalent_to_s1),
+                equivalent_to_s1,
+            );
         }
+        println!("EqStates: {:#?}", equivalent_composite_states);
     }
 
     fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
