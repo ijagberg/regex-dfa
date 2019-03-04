@@ -31,12 +31,8 @@ impl Automaton {
             set_as_vector.push(i);
         }
         set_as_vector.sort();
-        let mut unique_id = "".to_string();
-        for i in set_as_vector {
-            unique_id = format!("{},{}", unique_id, i.to_string());
-        }
 
-        unique_id
+        format!("{:?}", set_as_vector)
     }
 
     /// Returns true if every state in the given composite state is accepting
@@ -54,10 +50,9 @@ impl Automaton {
     }
 
     /// Returns a dfa simulating the same functionality of this automaton
-    pub fn as_dfa(&self) -> Automaton {
+    fn as_dfa(&self) -> Automaton {
         match self.start_state {
             Some(start_state) => {
-                println!("Alphabet: {:?}", self.alphabet);
                 let mut minimized_dfa = Automaton::new();
                 let mut comp_to_dfa = HashMap::new();
 
@@ -67,9 +62,7 @@ impl Automaton {
                 let comp_start_state = self.epsilon_closure(start_state);
 
                 to_visit_comp.push_back(comp_start_state.clone());
-                println!("Starting at composite: {:?}", comp_start_state);
                 while let Some(from_comp) = to_visit_comp.pop_front() {
-                    println!("Visiting {:?}", from_comp);
                     let from_comp_id = Automaton::get_unique_id_for_set(&from_comp);
                     visited_comp.insert(from_comp_id.clone());
                     let from_dfa_id = match comp_to_dfa.get(&from_comp_id) {
@@ -82,7 +75,6 @@ impl Automaton {
                     };
                     for c in &self.alphabet {
                         let to_comp = self.atom_closure(&from_comp, *c);
-                        println!("Traversing via {} takes you to {:?}", *c, to_comp);
                         if to_comp.len() > 0 {
                             let to_comp_id = Automaton::get_unique_id_for_set(&to_comp);
                             if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp_id) {
@@ -91,10 +83,6 @@ impl Automaton {
                             } else {
                                 // Composite state is not in the minimized dfa
                                 let to_dfa_id = minimized_dfa.add_state();
-                                println!(
-                                    "Adding a new state for {:?} with id {}",
-                                    to_comp, to_dfa_id
-                                );
                                 minimized_dfa.set_accepting(
                                     to_dfa_id,
                                     self.get_composite_accepting(&to_comp),
@@ -121,32 +109,68 @@ impl Automaton {
         }
     }
 
-    pub fn as_minimized_dfa(&self) {
-<<<<<<< HEAD
-        let x = self.get_marked_states_table();
+    fn as_minimized_dfa(&self) -> Automaton {
+        let equivalent_states = self.get_equivalent_states();
+        let mut comp_state_to_dfa = HashMap::new();
+        let mut min_dfa = Automaton::new();
 
-        for s1 in 0..self.states {
-            for s2 in 0..s1 {
-                if !x[s1 as usize][s2 as usize] {
-                    // (s1, s2) is unmarked, find its equivalences
+        // First add all states to minimized dfa
+        for (s1, equivalent_to_s1) in &equivalent_states {
+            if let Some(dfa_state_id) = comp_state_to_dfa.get(s1) {
+                // s1 has already been added to min_dfa
+                comp_state_to_dfa.insert(s1, *dfa_state_id);
+            } else {
+                let dfa_state_id = min_dfa.add_state();
+                for equivalent_state in equivalent_to_s1 {
+                    comp_state_to_dfa.insert(equivalent_state, dfa_state_id);
+                }
 
-=======
+                if let Some(comp_start_state) = self.start_state {
+                    if equivalent_to_s1.contains(&comp_start_state) {
+                        min_dfa.set_start_state(dfa_state_id);
+                    }
+                }
+
+                // Set accepting if all states in comp is accepting
+                min_dfa.set_accepting(
+                    dfa_state_id,
+                    equivalent_to_s1
+                        .iter()
+                        .all(|&state| self.accepting_states.contains(&state)),
+                );
+            }
+        }
+
+        // Then add all transitions
+        for (from_state, _) in &equivalent_states {
+            for c in &self.alphabet {
+                if let Some(to_state) = self.traverse_from(&from_state, c) {
+                    if let (Some(dfa_from_state), Some(dfa_to_state)) = (
+                        comp_state_to_dfa.get(&from_state),
+                        comp_state_to_dfa.get(&to_state),
+                    ) {
+                        min_dfa.add_transition(*dfa_from_state, *dfa_to_state, Some(*c));
+                    }
+                }
+            }
+        }
+
+        min_dfa
+    }
+
+    fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {
         let marked_states = self.get_marked_states_table();
-        let mut equivalent_composite_states: HashMap<String, HashSet<u32>> = HashMap::new();
+        let mut equivalent_composite_states = HashMap::new();
         for s1 in 0..self.states {
             let mut equivalent_to_s1 = HashSet::new();
             for s2 in 0..self.states {
                 if !marked_states[s1 as usize][s2 as usize] {
                     equivalent_to_s1.insert(s2);
->>>>>>> master
                 }
             }
-            equivalent_composite_states.insert(
-                Automaton::get_unique_id_for_set(&equivalent_to_s1),
-                equivalent_to_s1,
-            );
+            equivalent_composite_states.insert(s1, equivalent_to_s1);
         }
-        println!("EqStates: {:#?}", equivalent_composite_states);
+        equivalent_composite_states
     }
 
     pub fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
@@ -357,6 +381,6 @@ impl Automaton {
     }
 
     pub fn from(parse_tree: &ParseTree) -> Automaton {
-        from_tree(&parse_tree)
+        from_tree(&parse_tree).as_dfa().as_minimized_dfa()
     }
 }

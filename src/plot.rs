@@ -1,6 +1,7 @@
 use super::automaton::Automaton;
 
 pub fn automaton_pretty_print(automaton: &Automaton) {
+    println!("Number of states: {:?}", automaton.states);
     println!("Starting state: {:?}", automaton.start_state);
     for from_state in 0..automaton.states {
         if let Some(from_transitions) = automaton.from_transitions.get(&from_state) {
