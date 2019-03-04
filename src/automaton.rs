@@ -416,3 +416,8 @@ impl IntoParseTree for String {
         ParseTree::from(&self)
     }
 }
+impl IntoParseTree for &str {
+    fn into_parse_tree(self) -> ParseTree {
+        ParseTree::from(&self)
+    }
+}
