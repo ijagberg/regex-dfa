@@ -8,7 +8,7 @@ use std::time::Instant;
 fn main() {
     let regex = "(a|b)*abb";
     let timer = Instant::now();
-    let dfa = Automaton::from(&ParseTree::from(regex));
+    let dfa = Automaton::from(ParseTree::from(regex));
     println!("Created minimized dfa for regex {:?} in {:?}", regex, timer.elapsed());
     automaton_pretty_print(&dfa);
     let test_string_1 = "aaaabb";

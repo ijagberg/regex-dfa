@@ -12,6 +12,10 @@ pub struct Automaton {
     alphabet: HashSet<char>,
 }
 
+pub trait IntoParseTree {
+    fn into_parse_tree(self) -> ParseTree;
+}
+
 impl Automaton {
     pub fn new() -> Automaton {
         Automaton {
@@ -391,7 +395,24 @@ impl Automaton {
         }
     }
 
-    pub fn from(parse_tree: &ParseTree) -> Automaton {
-        from_tree(&parse_tree).as_dfa().as_minimized_dfa()
+    pub fn from<T>(into_parse_tree: T) -> Automaton
+    where
+        T: IntoParseTree,
+    {
+        from_tree(&into_parse_tree.into_parse_tree())
+            .as_dfa()
+            .as_minimized_dfa()
+    }
+}
+
+impl IntoParseTree for ParseTree {
+    fn into_parse_tree(self) -> ParseTree {
+        self
+    }
+}
+
+impl IntoParseTree for String {
+    fn into_parse_tree(self) -> ParseTree {
+        ParseTree::from(&self)
     }
 }
