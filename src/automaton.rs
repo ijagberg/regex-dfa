@@ -24,6 +24,17 @@ impl Automaton {
         }
     }
 
+    pub fn match_whole(&self, input: &str) -> bool {
+        let mut current_state = self.start_state.expect("No start state set for dfa");
+        for current_atom in input.chars() {
+            match self.traverse_from(&current_state, &current_atom) {
+                Some(next_state) => current_state = next_state,
+                None => return false,
+            }
+        }
+        self.accepting_states.contains(&current_state)
+    }
+
     // TODO: figure out a better way to use a set as a key
     fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
         let mut set_as_vector = Vec::new();
@@ -173,7 +184,7 @@ impl Automaton {
         equivalent_composite_states
     }
 
-    pub fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
+    fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
         let mut marked_states_table: Vec<Vec<bool>> =
             vec![vec![false; self.states as usize]; self.states as usize];
         for non_accepting_state in 0..self.states {
