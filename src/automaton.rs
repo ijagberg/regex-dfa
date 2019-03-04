@@ -121,13 +121,11 @@ impl Automaton {
     }
 
     pub fn as_minimized_dfa(&self) {
-        let x = self.get_marked_states_table();
+        let marked_states = self.get_marked_states_table();
         let mut equivalent_composite_states: Vec<HashSet<u32>> = Vec::new();
         for s1 in 0..self.states {
-            for s2 in 0..self.states {
-                if !x[s1 as usize][s2 as usize] {
-
-                }
+            for s2 in 0..s1 {
+                if !marked_states[s1 as usize][s2 as usize] {}
             }
         }
     }
@@ -140,6 +138,8 @@ impl Automaton {
                 for accepting_state in &self.accepting_states {
                     marked_states_table[non_accepting_state as usize]
                         [(*accepting_state) as usize] = true;
+                    marked_states_table[(*accepting_state) as usize]
+                        [non_accepting_state as usize] = true;
                 }
             }
         }
@@ -160,6 +160,7 @@ impl Automaton {
                                         [s2_to_state as usize]
                                     {
                                         marked_states_table[s1 as usize][s2 as usize] = true;
+                                        marked_states_table[s2 as usize][s1 as usize] = true;
                                         marked_a_pair = true;
                                         break 'mark;
                                     }
