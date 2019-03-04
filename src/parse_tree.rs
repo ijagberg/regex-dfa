@@ -92,3 +92,24 @@ impl ParseTree {
         }
     }
 }
+
+pub trait IntoParseTree {
+    fn into_parse_tree(self) -> ParseTree;
+}
+
+impl IntoParseTree for ParseTree {
+    fn into_parse_tree(self) -> ParseTree {
+        self
+    }
+}
+
+impl IntoParseTree for String {
+    fn into_parse_tree(self) -> ParseTree {
+        ParseTree::from(&self)
+    }
+}
+impl IntoParseTree for &str {
+    fn into_parse_tree(self) -> ParseTree {
+        ParseTree::from(&self)
+    }
+}

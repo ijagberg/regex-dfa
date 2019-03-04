@@ -1,6 +1,7 @@
 use super::construct_automaton::*;
-use super::parse_tree::ParseTree;
+use super::parse_tree::IntoParseTree;
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::ops::Mul;
 
 #[derive(Debug)]
 pub struct Automaton {
@@ -10,10 +11,6 @@ pub struct Automaton {
     pub start_state: Option<u32>,
     pub accepting_states: HashSet<u32>,
     alphabet: HashSet<char>,
-}
-
-pub trait IntoParseTree {
-    fn into_parse_tree(self) -> ParseTree;
 }
 
 impl Automaton {
@@ -37,17 +34,6 @@ impl Automaton {
             }
         }
         self.accepting_states.contains(&current_state)
-    }
-
-    // TODO: figure out a better way to use a set as a key
-    fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
-        let mut set_as_vector = Vec::new();
-        for i in set {
-            set_as_vector.push(i);
-        }
-        set_as_vector.sort();
-
-        format!("{:?}", set_as_vector)
     }
 
     /// Returns true if every state in the given composite state is accepting
@@ -78,7 +64,7 @@ impl Automaton {
 
                 to_visit_comp.push_back(comp_start_state.clone());
                 while let Some(from_comp) = to_visit_comp.pop_front() {
-                    let from_comp_id = Automaton::get_unique_id_for_set(&from_comp);
+                    let from_comp_id = get_unique_id_for_set(&from_comp);
                     visited_comp.insert(from_comp_id.clone());
                     let from_dfa_id = match comp_to_dfa.get(&from_comp_id) {
                         Some(dfa_id) => *dfa_id,
@@ -91,7 +77,7 @@ impl Automaton {
                     for c in &self.alphabet {
                         let to_comp = self.atom_closure(&from_comp, *c);
                         if to_comp.len() > 0 {
-                            let to_comp_id = Automaton::get_unique_id_for_set(&to_comp);
+                            let to_comp_id = get_unique_id_for_set(&to_comp);
                             if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp_id) {
                                 // Composite state is already in the minimized dfa
                                 minimized_dfa.add_transition(from_dfa_id, *to_dfa_id, Some(*c));
@@ -112,7 +98,7 @@ impl Automaton {
 
                 minimized_dfa.set_start_state(
                     *comp_to_dfa
-                        .get(&Automaton::get_unique_id_for_set(&comp_start_state))
+                        .get(&get_unique_id_for_set(&comp_start_state))
                         .unwrap(),
                 );
 
@@ -405,19 +391,21 @@ impl Automaton {
     }
 }
 
-impl IntoParseTree for ParseTree {
-    fn into_parse_tree(self) -> ParseTree {
-        self
+impl Mul for Automaton {
+    type Output = Automaton;
+
+    fn mul(self, other: Automaton) -> Automaton {
+        Automaton::new()
     }
 }
 
-impl IntoParseTree for String {
-    fn into_parse_tree(self) -> ParseTree {
-        ParseTree::from(&self)
+// TODO: figure out a better way to use a set as a key
+fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
+    let mut set_as_vector = Vec::new();
+    for i in set {
+        set_as_vector.push(i);
     }
-}
-impl IntoParseTree for &str {
-    fn into_parse_tree(self) -> ParseTree {
-        ParseTree::from(&self)
-    }
+    set_as_vector.sort();
+
+    format!("{:?}", set_as_vector)
 }
