@@ -122,6 +122,7 @@ impl Automaton {
     }
 
     pub fn as_minimized_dfa(&self) {
+<<<<<<< HEAD
         let x = self.get_marked_states_table();
 
         for s1 in 0..self.states {
@@ -129,9 +130,23 @@ impl Automaton {
                 if !x[s1 as usize][s2 as usize] {
                     // (s1, s2) is unmarked, find its equivalences
 
+=======
+        let marked_states = self.get_marked_states_table();
+        let mut equivalent_composite_states: HashMap<String, HashSet<u32>> = HashMap::new();
+        for s1 in 0..self.states {
+            let mut equivalent_to_s1 = HashSet::new();
+            for s2 in 0..self.states {
+                if !marked_states[s1 as usize][s2 as usize] {
+                    equivalent_to_s1.insert(s2);
+>>>>>>> master
                 }
             }
+            equivalent_composite_states.insert(
+                Automaton::get_unique_id_for_set(&equivalent_to_s1),
+                equivalent_to_s1,
+            );
         }
+        println!("EqStates: {:#?}", equivalent_composite_states);
     }
 
     pub fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
@@ -142,6 +157,8 @@ impl Automaton {
                 for accepting_state in &self.accepting_states {
                     marked_states_table[non_accepting_state as usize]
                         [(*accepting_state) as usize] = true;
+                    marked_states_table[(*accepting_state) as usize]
+                        [non_accepting_state as usize] = true;
                 }
             }
         }
@@ -161,6 +178,7 @@ impl Automaton {
                                         [s2_to_state as usize]
                                     {
                                         marked_states_table[s1 as usize][s2 as usize] = true;
+                                        marked_states_table[s2 as usize][s1 as usize] = true;
                                         marked_a_pair = true;
                                         break 'mark;
                                     }
