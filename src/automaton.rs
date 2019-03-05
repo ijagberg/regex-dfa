@@ -1,5 +1,6 @@
 use super::construct_automaton::*;
 use super::parse_tree::IntoParseTree;
+use super::plot;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ops::Mul;
 
@@ -28,11 +29,16 @@ impl Automaton {
     pub fn match_whole(&self, input: &str) -> bool {
         let mut current_state = self.start_state.expect("No start state set for dfa");
         for current_atom in input.chars() {
+            println!("Traversing from {:?} via {:?}", &current_state, &current_atom);
             match self.traverse_from(&current_state, &current_atom) {
                 Some(next_state) => current_state = next_state,
-                None => return false,
+                None => {
+                    println!("No transition from {:?} via {:?}", &current_state, &current_atom);
+                    return false;
+                },
             }
         }
+        println!("Traversal ended at {:?}", &current_state);
         self.accepting_states.contains(&current_state)
     }
 
@@ -446,7 +452,7 @@ impl Mul for Automaton {
                 mul_dfa.set_start_state(*mul_start_state);
             }
         }
-        mul_dfa
+        mul_dfa.as_minimized_dfa()
     }
 }
 
@@ -459,4 +465,25 @@ fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
     set_as_vector.sort();
 
     format!("{:?}", set_as_vector)
+}
+
+#[test]
+fn test_automaton_mul() {
+    let automaton_a = Automaton::from("(aa)|(aaa*b)");
+    plot::automaton_pretty_print(&automaton_a);
+    assert!(automaton_a.match_whole("aa"));
+    assert!(automaton_a.match_whole("aaaaaab"));
+    assert!(!automaton_a.match_whole("b"));
+    assert!(!automaton_a.match_whole("baa"));
+    assert!(!automaton_a.match_whole("aaabb"));
+
+    // let automaton_b = Automaton::from("a*bb*");
+    // assert!(!automaton_b.match_whole("aa"));
+    // assert!(!automaton_b.match_whole("aaaaaab"));
+    // assert!(automaton_b.match_whole("aaabb"));
+    // plot::automaton_pretty_print(&automaton_b);
+
+    // let automaton_c = automaton_a * automaton_b;
+    // assert!(automaton_c.match_whole("aab"));
+    // plot::automaton_pretty_print(&automaton_c);
 }
