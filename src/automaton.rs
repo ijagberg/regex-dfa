@@ -395,6 +395,18 @@ impl Mul for Automaton {
     type Output = Automaton;
 
     fn mul(self, other: Automaton) -> Automaton {
+        // For each pair of states,
+        let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
+        for (self_from_state, other_from_state) in (0..self.states).zip(0..other.states) {
+            for atom in &mul_alphabet {
+                if let (Some(self_to_state), Some(other_from_state)) = (
+                    self.traverse_from(&self_from_state, &atom),
+                    other.traverse_from(&other_from_state, &atom),
+                ) {
+                    // There is a transition from from_state to a to_state via atom for both self and other
+                }
+            }
+        }
         Automaton::new()
     }
 }
