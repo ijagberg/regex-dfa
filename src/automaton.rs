@@ -396,18 +396,57 @@ impl Mul for Automaton {
 
     fn mul(self, other: Automaton) -> Automaton {
         // For each pair of states,
+        let mut mul_dfa = Automaton::new();
         let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
+        let mut pair_to_dfa: HashMap<(u32, u32), u32> = HashMap::new();
         for (self_from_state, other_from_state) in (0..self.states).zip(0..other.states) {
+            let mul_from_state = match pair_to_dfa.get(&(self_from_state, other_from_state)) {
+                Some(mul_state) => mul_state.clone(),
+                None => {
+                    let mul_from_state = mul_dfa.add_state();
+                    pair_to_dfa.insert((self_from_state, other_from_state), mul_from_state);
+                    mul_dfa.set_accepting(
+                        mul_from_state,
+                        self.accepting_states.contains(&self_from_state)
+                            && other.accepting_states.contains(&other_from_state),
+                    );
+                    mul_from_state
+                }
+            };
+
             for atom in &mul_alphabet {
-                if let (Some(self_to_state), Some(other_from_state)) = (
+                if let (Some(self_to_state), Some(other_to_state)) = (
                     self.traverse_from(&self_from_state, &atom),
                     other.traverse_from(&other_from_state, &atom),
                 ) {
                     // There is a transition from from_state to a to_state via atom for both self and other
+                    let mul_to_state = match pair_to_dfa.get(&(self_to_state, other_to_state)) {
+                        Some(mul_state) => mul_state.clone(),
+                        None => {
+                            let mul_to_state = mul_dfa.add_state();
+                            pair_to_dfa.insert((self_to_state, other_to_state), mul_to_state);
+                            mul_dfa.set_accepting(
+                                mul_to_state,
+                                self.accepting_states.contains(&self_to_state)
+                                    && other.accepting_states.contains(&other_to_state),
+                            );
+                            mul_to_state
+                        }
+                    };
+
+                    // Add transition from mul_from_state to mul_to_state
+                    mul_dfa.add_transition(mul_from_state, mul_to_state, Some(*atom));
                 }
             }
+
+            // Set start state in mul_dfa
+            if let Some(mul_start_state) =
+                pair_to_dfa.get(&(self.start_state.unwrap(), other.start_state.unwrap()))
+            {
+                mul_dfa.set_start_state(*mul_start_state);
+            }
         }
-        Automaton::new()
+        mul_dfa
     }
 }
 
