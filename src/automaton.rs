@@ -480,34 +480,17 @@ fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
 #[test]
 fn test_automaton_mul() {
     let automaton_a = Automaton::from("(aa)|(aaa*b)");
-    plot::automaton_pretty_print(&automaton_a);
-    let automaton_a_min = automaton_a.as_minimized_dfa();
-    plot::automaton_pretty_print(&automaton_a_min);
     assert!(automaton_a.match_whole("aa"));
     assert!(automaton_a.match_whole("aaaaaab"));
     assert!(!automaton_a.match_whole("b"));
     assert!(!automaton_a.match_whole("baa"));
     assert!(!automaton_a.match_whole("aaabb"));
 
-    assert!(automaton_a_min.match_whole("aa"));
-    assert!(automaton_a_min.match_whole("aaaaaab"));
-    assert!(!automaton_a_min.match_whole("b"));
-    assert!(!automaton_a_min.match_whole("baa"));
-    assert!(!automaton_a_min.match_whole("aaabb"));
-
     let automaton_b = Automaton::from("a*bb*");
-    plot::automaton_pretty_print(&automaton_b);
-    let automaton_b_min = automaton_b.as_minimized_dfa();
-    plot::automaton_pretty_print(&automaton_b_min);
     assert!(!automaton_b.match_whole("aa"));
     assert!(automaton_b.match_whole("aaaaaab"));
     assert!(automaton_b.match_whole("aaabb"));
 
-    assert!(!automaton_b_min.match_whole("aa"));
-    assert!(automaton_b_min.match_whole("aaaaaab"));
-    assert!(automaton_b_min.match_whole("aaabb"));
-
     let automaton_c = automaton_a * automaton_b;
-    plot::automaton_pretty_print(&automaton_c);
     assert!(automaton_c.match_whole("aab"));
 }
