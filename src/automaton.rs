@@ -218,14 +218,14 @@ impl Automaton {
                                     }
                                 }
                                 (Some(s1_to_state), Some(s2_to_state)) => {
-                                    marked_states_table[s1 as usize][s2 as usize] =
-                                        marked_states_table[s1_to_state as usize]
-                                            [s2_to_state as usize];
-                                    marked_states_table[s2 as usize][s1 as usize] =
-                                        marked_states_table[s2_to_state as usize]
-                                            [s1_to_state as usize];
-                                    marked_a_pair = true;
-                                    break 'mark;
+                                    if marked_states_table[s1_to_state as usize]
+                                        [s2_to_state as usize]
+                                    {
+                                        marked_states_table[s1 as usize][s2 as usize] = true;
+                                        marked_states_table[s2 as usize][s1 as usize] = true;
+                                        marked_a_pair = true;
+                                        break 'mark;
+                                    }
                                 }
                                 (None, None) => {}
                             }
@@ -415,7 +415,7 @@ impl Mul for Automaton {
     fn mul(self, other: Automaton) -> Automaton {
         // For each pair of states,
         let mut mul_dfa = Automaton::new();
-        let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
+        let mul_alphabet: HashSet<char> = dbg!(self.alphabet.union(&other.alphabet).cloned().collect());
         let mut pair_to_dfa: HashMap<(u32, u32), u32> = HashMap::new();
         for (self_from_state, other_from_state) in (0..self.states).zip(0..other.states) {
             let mul_from_state = match pair_to_dfa.get(&(self_from_state, other_from_state)) {
@@ -461,7 +461,7 @@ impl Mul for Automaton {
             if let Some(mul_start_state) =
                 pair_to_dfa.get(&(self.start_state.unwrap(), other.start_state.unwrap()))
             {
-                mul_dfa.set_start_state(*mul_start_state);
+                dbg!(mul_dfa.set_start_state(dbg!(*mul_start_state)));
             }
         }
         mul_dfa.as_minimized_dfa()
@@ -470,34 +470,42 @@ impl Mul for Automaton {
 
 // TODO: figure out a better way to use a set as a key
 fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
-    let mut set_as_vector = Vec::new();
-    for i in set {
-        set_as_vector.push(i);
-    }
+    let mut set_as_vector: Vec<u32> = set.iter().cloned().collect();
     set_as_vector.sort();
-
     format!("{:?}", set_as_vector)
 }
 
 #[test]
 fn test_automaton_mul() {
     let automaton_a = Automaton::from("(aa)|(aaa*b)");
+    // plot::automaton_pretty_print(&automaton_a);
     let automaton_a_min = automaton_a.as_minimized_dfa();
-    plot::automaton_pretty_print(&automaton_a);
-    plot::automaton_pretty_print(&automaton_a_min);
+    // plot::automaton_pretty_print(&automaton_a_min);
     assert!(automaton_a.match_whole("aa"));
     assert!(automaton_a.match_whole("aaaaaab"));
     assert!(!automaton_a.match_whole("b"));
     assert!(!automaton_a.match_whole("baa"));
     assert!(!automaton_a.match_whole("aaabb"));
 
-    // let automaton_b = Automaton::from("a*bb*").as_minimized_dfa();
-    // assert!(!automaton_b.match_whole("aa"));
-    // assert!(!automaton_b.match_whole("aaaaaab"));
-    // assert!(automaton_b.match_whole("aaabb"));
-    // plot::automaton_pretty_print(&automaton_b);
+    assert!(automaton_a_min.match_whole("aa"));
+    assert!(automaton_a_min.match_whole("aaaaaab"));
+    assert!(!automaton_a_min.match_whole("b"));
+    assert!(!automaton_a_min.match_whole("baa"));
+    assert!(!automaton_a_min.match_whole("aaabb"));
 
-    // let automaton_c = automaton_a * automaton_b;
-    // assert!(automaton_c.match_whole("aab"));
-    // plot::automaton_pretty_print(&automaton_c);
+    let automaton_b = Automaton::from("a*bb*");
+    // plot::automaton_pretty_print(&automaton_b);
+    let automaton_b_min = automaton_b.as_minimized_dfa();
+    // plot::automaton_pretty_print(&automaton_b_min);
+    assert!(!automaton_b.match_whole("aa"));
+    assert!(automaton_b.match_whole("aaaaaab"));
+    assert!(automaton_b.match_whole("aaabb"));
+
+    assert!(!automaton_b_min.match_whole("aa"));
+    assert!(automaton_b_min.match_whole("aaaaaab"));
+    assert!(automaton_b_min.match_whole("aaabb"));
+
+    let automaton_c = automaton_a * automaton_b;
+    plot::automaton_pretty_print(&automaton_c);
+    assert!(automaton_c.match_whole("aab"));
 }
