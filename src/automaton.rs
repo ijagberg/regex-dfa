@@ -1,6 +1,5 @@
 use super::construct_automaton::*;
 use super::parse_tree::IntoParseTree;
-use super::plot;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ops::Mul;
 
