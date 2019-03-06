@@ -112,7 +112,7 @@ impl Automaton {
     }
 
     fn as_minimized_dfa(&self) -> Automaton {
-        let equivalent_states = dbg!(self.get_equivalent_states());
+        let equivalent_states = self.get_equivalent_states();
         let mut comp_state_to_dfa = HashMap::new();
         let mut min_dfa = Automaton::new();
 
@@ -161,7 +161,7 @@ impl Automaton {
     }
 
     fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {
-        let marked_states = dbg!(self.get_marked_states_table());
+        let marked_states = self.get_marked_states_table();
         let mut equivalent_composite_states = HashMap::new();
         for s1 in 0..self.states {
             let mut equivalent_to_s1 = HashSet::new();
@@ -415,53 +415,55 @@ impl Mul for Automaton {
     fn mul(self, other: Automaton) -> Automaton {
         // For each pair of states,
         let mut mul_dfa = Automaton::new();
-        let mul_alphabet: HashSet<char> = dbg!(self.alphabet.union(&other.alphabet).cloned().collect());
+        let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
         let mut pair_to_dfa: HashMap<(u32, u32), u32> = HashMap::new();
-        for (self_from_state, other_from_state) in (0..self.states).zip(0..other.states) {
-            let mul_from_state = match pair_to_dfa.get(&(self_from_state, other_from_state)) {
-                Some(mul_state) => mul_state.clone(),
-                None => {
-                    let mul_from_state = mul_dfa.add_state();
-                    pair_to_dfa.insert((self_from_state, other_from_state), mul_from_state);
-                    mul_dfa.set_accepting(
-                        mul_from_state,
-                        self.accepting_states.contains(&self_from_state)
-                            && other.accepting_states.contains(&other_from_state),
-                    );
-                    mul_from_state
+        for self_from_state in 0..self.states {
+            for other_from_state in 0..other.states {
+                let mul_from_state = match pair_to_dfa.get(&(self_from_state, other_from_state)) {
+                    Some(mul_state) => mul_state.clone(),
+                    None => {
+                        let mul_from_state = mul_dfa.add_state();
+                        pair_to_dfa.insert((self_from_state, other_from_state), mul_from_state);
+                        mul_dfa.set_accepting(
+                            mul_from_state,
+                            self.accepting_states.contains(&self_from_state)
+                                && other.accepting_states.contains(&other_from_state),
+                        );
+                        mul_from_state
+                    }
+                };
+
+                for atom in &mul_alphabet {
+                    if let (Some(self_to_state), Some(other_to_state)) = (
+                        self.traverse_from(&self_from_state, &atom),
+                        other.traverse_from(&other_from_state, &atom),
+                    ) {
+                        // There is a transition from from_state to a to_state via atom for both self and other
+                        let mul_to_state = match pair_to_dfa.get(&(self_to_state, other_to_state)) {
+                            Some(mul_state) => mul_state.clone(),
+                            None => {
+                                let mul_to_state = mul_dfa.add_state();
+                                pair_to_dfa.insert((self_to_state, other_to_state), mul_to_state);
+                                mul_dfa.set_accepting(
+                                    mul_to_state,
+                                    self.accepting_states.contains(&self_to_state)
+                                        && other.accepting_states.contains(&other_to_state),
+                                );
+                                mul_to_state
+                            }
+                        };
+
+                        // Add transition from mul_from_state to mul_to_state
+                        mul_dfa.add_transition(mul_from_state, mul_to_state, Some(*atom));
+                    }
                 }
-            };
 
-            for atom in &mul_alphabet {
-                if let (Some(self_to_state), Some(other_to_state)) = (
-                    self.traverse_from(&self_from_state, &atom),
-                    other.traverse_from(&other_from_state, &atom),
-                ) {
-                    // There is a transition from from_state to a to_state via atom for both self and other
-                    let mul_to_state = match pair_to_dfa.get(&(self_to_state, other_to_state)) {
-                        Some(mul_state) => mul_state.clone(),
-                        None => {
-                            let mul_to_state = mul_dfa.add_state();
-                            pair_to_dfa.insert((self_to_state, other_to_state), mul_to_state);
-                            mul_dfa.set_accepting(
-                                mul_to_state,
-                                self.accepting_states.contains(&self_to_state)
-                                    && other.accepting_states.contains(&other_to_state),
-                            );
-                            mul_to_state
-                        }
-                    };
-
-                    // Add transition from mul_from_state to mul_to_state
-                    mul_dfa.add_transition(mul_from_state, mul_to_state, Some(*atom));
+                // Set start state in mul_dfa
+                if let Some(mul_start_state) =
+                    pair_to_dfa.get(&(self.start_state.unwrap(), other.start_state.unwrap()))
+                {
+                    mul_dfa.set_start_state(*mul_start_state);
                 }
-            }
-
-            // Set start state in mul_dfa
-            if let Some(mul_start_state) =
-                pair_to_dfa.get(&(self.start_state.unwrap(), other.start_state.unwrap()))
-            {
-                dbg!(mul_dfa.set_start_state(dbg!(*mul_start_state)));
             }
         }
         mul_dfa.as_minimized_dfa()
@@ -478,9 +480,9 @@ fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
 #[test]
 fn test_automaton_mul() {
     let automaton_a = Automaton::from("(aa)|(aaa*b)");
-    // plot::automaton_pretty_print(&automaton_a);
+    plot::automaton_pretty_print(&automaton_a);
     let automaton_a_min = automaton_a.as_minimized_dfa();
-    // plot::automaton_pretty_print(&automaton_a_min);
+    plot::automaton_pretty_print(&automaton_a_min);
     assert!(automaton_a.match_whole("aa"));
     assert!(automaton_a.match_whole("aaaaaab"));
     assert!(!automaton_a.match_whole("b"));
@@ -494,9 +496,9 @@ fn test_automaton_mul() {
     assert!(!automaton_a_min.match_whole("aaabb"));
 
     let automaton_b = Automaton::from("a*bb*");
-    // plot::automaton_pretty_print(&automaton_b);
+    plot::automaton_pretty_print(&automaton_b);
     let automaton_b_min = automaton_b.as_minimized_dfa();
-    // plot::automaton_pretty_print(&automaton_b_min);
+    plot::automaton_pretty_print(&automaton_b_min);
     assert!(!automaton_b.match_whole("aa"));
     assert!(automaton_b.match_whole("aaaaaab"));
     assert!(automaton_b.match_whole("aaabb"));
