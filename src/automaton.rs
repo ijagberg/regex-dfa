@@ -29,16 +29,11 @@ impl Automaton {
     pub fn match_whole(&self, input: &str) -> bool {
         let mut current_state = self.start_state.expect("No start state set for dfa");
         for current_atom in input.chars() {
-            println!("Traversing from {:?} via {:?}", &current_state, &current_atom);
             match self.traverse_from(&current_state, &current_atom) {
                 Some(next_state) => current_state = next_state,
-                None => {
-                    println!("No transition from {:?} via {:?}", &current_state, &current_atom);
-                    return false;
-                },
+                None => return false,
             }
         }
-        println!("Traversal ended at {:?}", &current_state);
         self.accepting_states.contains(&current_state)
     }
 
@@ -117,7 +112,7 @@ impl Automaton {
     }
 
     fn as_minimized_dfa(&self) -> Automaton {
-        let equivalent_states = self.get_equivalent_states();
+        let equivalent_states = dbg!(self.get_equivalent_states());
         let mut comp_state_to_dfa = HashMap::new();
         let mut min_dfa = Automaton::new();
 
@@ -166,7 +161,7 @@ impl Automaton {
     }
 
     fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {
-        let marked_states = self.get_marked_states_table();
+        let marked_states = dbg!(self.get_marked_states_table());
         let mut equivalent_composite_states = HashMap::new();
         for s1 in 0..self.states {
             let mut equivalent_to_s1 = HashSet::new();
@@ -203,17 +198,36 @@ impl Automaton {
                     if !marked_states_table[s1 as usize][s2 as usize] {
                         // Check if there is any transition from (s1, s2) to a marked pair
                         for c in &self.alphabet {
-                            if let Some(s1_to_state) = self.traverse_from(&s1, c) {
-                                if let Some(s2_to_state) = self.traverse_from(&s2, c) {
-                                    if marked_states_table[s1_to_state as usize]
-                                        [s2_to_state as usize]
-                                    {
+                            match (self.traverse_from(&s1, c), self.traverse_from(&s2, c)) {
+                                (None, Some(s2_to_state)) => {
+                                    // There is no transition for s1, there is a transition for s2
+                                    if self.accepting_states.contains(&s2_to_state) {
                                         marked_states_table[s1 as usize][s2 as usize] = true;
                                         marked_states_table[s2 as usize][s1 as usize] = true;
                                         marked_a_pair = true;
                                         break 'mark;
                                     }
                                 }
+                                (Some(s1_to_state), None) => {
+                                    // There is a transition for s1, there is no transition for s2
+                                    if self.accepting_states.contains(&s1_to_state) {
+                                        marked_states_table[s1 as usize][s2 as usize] = true;
+                                        marked_states_table[s2 as usize][s1 as usize] = true;
+                                        marked_a_pair = true;
+                                        break 'mark;
+                                    }
+                                }
+                                (Some(s1_to_state), Some(s2_to_state)) => {
+                                    marked_states_table[s1 as usize][s2 as usize] =
+                                        marked_states_table[s1_to_state as usize]
+                                            [s2_to_state as usize];
+                                    marked_states_table[s2 as usize][s1 as usize] =
+                                        marked_states_table[s2_to_state as usize]
+                                            [s1_to_state as usize];
+                                    marked_a_pair = true;
+                                    break 'mark;
+                                }
+                                (None, None) => {}
                             }
                         }
                     }
@@ -391,9 +405,7 @@ impl Automaton {
     where
         T: IntoParseTree,
     {
-        from_tree(&into_parse_tree.into_parse_tree())
-            .as_dfa()
-            .as_minimized_dfa()
+        from_tree(&into_parse_tree.into_parse_tree()).as_dfa()
     }
 }
 
@@ -470,14 +482,16 @@ fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
 #[test]
 fn test_automaton_mul() {
     let automaton_a = Automaton::from("(aa)|(aaa*b)");
+    let automaton_a_min = automaton_a.as_minimized_dfa();
     plot::automaton_pretty_print(&automaton_a);
+    plot::automaton_pretty_print(&automaton_a_min);
     assert!(automaton_a.match_whole("aa"));
     assert!(automaton_a.match_whole("aaaaaab"));
     assert!(!automaton_a.match_whole("b"));
     assert!(!automaton_a.match_whole("baa"));
     assert!(!automaton_a.match_whole("aaabb"));
 
-    // let automaton_b = Automaton::from("a*bb*");
+    // let automaton_b = Automaton::from("a*bb*").as_minimized_dfa();
     // assert!(!automaton_b.match_whole("aa"));
     // assert!(!automaton_b.match_whole("aaaaaab"));
     // assert!(automaton_b.match_whole("aaabb"));
