@@ -406,7 +406,7 @@ impl Automaton {
         from_tree(&into_parse_tree.into_parse_tree()).as_dfa()
     }
 
-    fn intersection(&self, other: &Automaton) -> Automaton {
+    pub fn intersection(&self, other: &Automaton) -> Automaton {
         // For each pair of states,
         let mut mul_dfa = Automaton::new();
         let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
