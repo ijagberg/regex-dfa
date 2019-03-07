@@ -35,20 +35,6 @@ impl Automaton {
         self.accepting_states.contains(&current_state)
     }
 
-    /// Returns true if every state in the given composite state is accepting
-    ///
-    /// # Arguments
-    ///
-    /// * `composite` - The composite state set to check
-    fn get_composite_accepting(&self, composite: &HashSet<u32>) -> bool {
-        for s in composite {
-            if self.accepting_states.contains(&s) {
-                return true;
-            }
-        }
-        false
-    }
-
     /// Returns a dfa simulating the same functionality of this automaton
     fn as_dfa(&self) -> Automaton {
         match self.start_state {
@@ -85,7 +71,7 @@ impl Automaton {
                                 let to_dfa_id = minimized_dfa.add_state();
                                 minimized_dfa.set_accepting(
                                     to_dfa_id,
-                                    self.get_composite_accepting(&to_comp),
+                                    to_comp.iter().any(|s| self.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
                                 );
                                 to_visit_comp.push_back(to_comp);
                                 comp_to_dfa.insert(to_comp_id, to_dfa_id);
