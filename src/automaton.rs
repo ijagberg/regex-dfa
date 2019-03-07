@@ -44,6 +44,49 @@ impl Automaton {
         self.accepting_states.contains(&current_state)
     }
 
+    /// Traverses the dfa via the characters in `input` to find the first prefix that is matched by the dfa
+    pub fn match_first_prefix<'a>(&self, input: &'a str) -> Option<&'a str> {
+        let mut current_state = self.start_state.expect("No start state set for dfa");
+        for (index, current_atom) in input.chars().enumerate() {
+            if self.accepting_states.contains(&current_state) {
+                return Some(&input[0..index]);
+            }
+            match self.traverse_from(current_state, current_atom) {
+                Some(next_state) => current_state = next_state,
+                None => return None,
+            }
+        }
+        Some(input)
+    }
+
+    pub fn match_all_prefixes<'a>(&self, input: &'a str) -> Vec<&'a str> {
+        let mut matched_prefixes: Vec<&str> = Vec::new();
+
+        let mut current_state = self.start_state.expect("No start state set for dfa");
+        for (index, current_atom) in input.chars().enumerate() {
+            if self.accepting_states.contains(&current_state) {
+                matched_prefixes.push(&input[0..index]);
+            }
+            match self.traverse_from(current_state, current_atom) {
+                Some(next_state) => current_state = next_state,
+                None => return matched_prefixes,
+            }
+        }
+        matched_prefixes
+    }
+
+    pub fn match_substrings<'a>(&self, input: &'a str) -> Vec<&'a str> {
+        let mut matched_substrings: Vec<&str> = Vec::new();
+
+        for (index, _) in input.chars().enumerate() {
+            let matched_prefixes = self.match_all_prefixes(&input[index..]);
+            for matched_prefix in matched_prefixes {
+                matched_substrings.push(matched_prefix);
+            }
+        }
+        matched_substrings
+    }
+
     /// Returns a dfa simulating the same functionality of this automaton
     fn as_dfa(&self) -> Automaton {
         match self.start_state {
@@ -464,19 +507,39 @@ fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
 }
 
 #[test]
-fn test_automaton_mul() {
-    let automaton_a = Automaton::from("(aa)|(aaa*b)");
-    assert!(automaton_a.match_whole("aa"));
-    assert!(automaton_a.match_whole("aaaaaab"));
-    assert!(!automaton_a.match_whole("b"));
-    assert!(!automaton_a.match_whole("baa"));
-    assert!(!automaton_a.match_whole("aaabb"));
+fn test_match_whole() {
+    let test_automaton = Automaton::from("Hello*");
+    assert!(test_automaton.match_whole("Hello"));
+    assert!(test_automaton.match_whole("Helloooo"));
+    assert!(test_automaton.match_whole("Hell"));
+    assert!(!test_automaton.match_whole("Hel"));
+}
 
-    let automaton_b = Automaton::from("a*bb*");
-    assert!(!automaton_b.match_whole("aa"));
-    assert!(automaton_b.match_whole("aaaaaab"));
-    assert!(automaton_b.match_whole("aaabb"));
+#[test]
+fn test_match_first_prefix() {
+    let test_automaton = Automaton::from("Hello*");
+    assert_eq!(
+        "Hell",
+        test_automaton.match_first_prefix("Hello, world!").unwrap()
+    );
+    assert!(test_automaton.match_first_prefix("Hi, world!").is_none());
+}
 
-    let automaton_c = automaton_a.intersection(&automaton_b);
-    assert!(automaton_c.match_whole("aab"));
+#[test]
+fn test_match_all_prefixes() {
+    let test_automaton = Automaton::from("Hello*");
+    assert_eq!(
+        vec!["Hell", "Hello", "Helloo"],
+        test_automaton.match_all_prefixes("Helloo!")
+    );
+    assert!(test_automaton.match_all_prefixes("Yo, earth!").is_empty());
+}
+
+#[test]
+fn test_match_substrings() {
+    let test_automaton = Automaton::from("H*ello*");
+    assert_eq!(
+        vec!["ell", "ello", "elloo"],
+        test_automaton.match_substrings("ellooo")
+    )
 }
