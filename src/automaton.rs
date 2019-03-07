@@ -513,6 +513,12 @@ fn test_match_whole() {
     assert!(test_automaton.match_whole("Helloooo"));
     assert!(test_automaton.match_whole("Hell"));
     assert!(!test_automaton.match_whole("Hel"));
+
+    let test_automaton = Automaton::from("Co((o(l|p))|(ward))");
+    assert!(test_automaton.match_whole("Cool"));
+    assert!(test_automaton.match_whole("Coop"));
+    assert!(test_automaton.match_whole("Coward"));
+    assert!(!test_automaton.match_whole("Cooward"));
 }
 
 #[test]

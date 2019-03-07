@@ -1,3 +1,6 @@
+use std::iter::Peekable;
+use std::slice::Iter;
+
 #[derive(Debug)]
 pub enum ParseTree {
     Or {
@@ -28,7 +31,7 @@ impl ParseTree {
         ParseTree::build_tree(&mut iter)
     }
 
-    fn build_tree(mut iter: &mut std::iter::Peekable<std::slice::Iter<'_, char>>) -> ParseTree {
+    fn build_tree(mut iter: &mut Peekable<Iter<'_, char>>) -> ParseTree {
         let tree = ParseTree::build_term(&mut iter);
         match iter.peek() {
             Some('|') => {
@@ -43,7 +46,7 @@ impl ParseTree {
         }
     }
 
-    fn build_term(mut iter: &mut std::iter::Peekable<std::slice::Iter<'_, char>>) -> ParseTree {
+    fn build_term(mut iter: &mut Peekable<Iter<'_, char>>) -> ParseTree {
         let mut factor_tree = ParseTree::Empty;
         while let Some(c) = iter.peek() {
             match c {
@@ -65,7 +68,7 @@ impl ParseTree {
         factor_tree
     }
 
-    fn build_factor(mut iter: &mut std::iter::Peekable<std::slice::Iter<'_, char>>) -> ParseTree {
+    fn build_factor(mut iter: &mut Peekable<Iter<'_, char>>) -> ParseTree {
         let mut base_tree = ParseTree::build_base(&mut iter);
         while let Some('*') = iter.peek() {
             iter.next();
@@ -76,7 +79,7 @@ impl ParseTree {
         base_tree
     }
 
-    fn build_base(iter: &mut std::iter::Peekable<std::slice::Iter<'_, char>>) -> ParseTree {
+    fn build_base(iter: &mut Peekable<Iter<'_, char>>) -> ParseTree {
         match iter.next() {
             Some('(') => {
                 let tree = ParseTree::build_tree(iter);
