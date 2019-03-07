@@ -1,7 +1,6 @@
 use super::construct_automaton::*;
 use super::parse_tree::IntoParseTree;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::ops::Mul;
 
 #[derive(Debug)]
 pub struct Automaton {
@@ -406,12 +405,8 @@ impl Automaton {
     {
         from_tree(&into_parse_tree.into_parse_tree()).as_dfa()
     }
-}
 
-impl Mul for Automaton {
-    type Output = Automaton;
-
-    fn mul(self, other: Automaton) -> Automaton {
+    fn intersection(&self, other: &Automaton) -> Automaton {
         // For each pair of states,
         let mut mul_dfa = Automaton::new();
         let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
@@ -490,6 +485,6 @@ fn test_automaton_mul() {
     assert!(automaton_b.match_whole("aaaaaab"));
     assert!(automaton_b.match_whole("aaabb"));
 
-    let automaton_c = automaton_a * automaton_b;
+    let automaton_c = automaton_a.intersection(&automaton_b);
     assert!(automaton_c.match_whole("aab"));
 }
