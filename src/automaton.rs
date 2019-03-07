@@ -24,6 +24,15 @@ impl Automaton {
         }
     }
 
+    /// Traverses the dfa via the characters in `input` to determine if it matches the whole string
+    ///
+    /// # Arguments
+    /// * `input` - The string to be matched
+    ///
+    /// # Return
+    /// `true` if the dfa is in an accepting state after traversing through all of `input`.
+    ///
+    /// `false` if the dfa is in a non-accepting state after traversing through all of `input`, or if there is some point where there is no transition for the current atom being processed
     pub fn match_whole(&self, input: &str) -> bool {
         let mut current_state = self.start_state.expect("No start state set for dfa");
         for current_atom in input.chars() {
