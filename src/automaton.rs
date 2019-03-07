@@ -2,7 +2,7 @@ use super::construct_automaton::*;
 use super::parse_tree::IntoParseTree;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Automaton {
     pub states: u32,
     pub from_transitions: HashMap<u32, HashMap<u32, HashSet<Option<char>>>>,
@@ -27,7 +27,7 @@ impl Automaton {
     pub fn match_whole(&self, input: &str) -> bool {
         let mut current_state = self.start_state.expect("No start state set for dfa");
         for current_atom in input.chars() {
-            match self.traverse_from(&current_state, &current_atom) {
+            match self.traverse_from(current_state, current_atom) {
                 Some(next_state) => current_state = next_state,
                 None => return false,
             }
@@ -61,7 +61,7 @@ impl Automaton {
                     };
                     for c in &self.alphabet {
                         let to_comp = self.atom_closure(&from_comp, *c);
-                        if to_comp.len() > 0 {
+                        if !to_comp.is_empty() {
                             let to_comp_id = get_unique_id_for_set(&to_comp);
                             if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp_id) {
                                 // Composite state is already in the minimized dfa
@@ -81,11 +81,8 @@ impl Automaton {
                     }
                 }
 
-                minimized_dfa.set_start_state(
-                    *comp_to_dfa
-                        .get(&get_unique_id_for_set(&comp_start_state))
-                        .unwrap(),
-                );
+                minimized_dfa
+                    .set_start_state(comp_to_dfa[&get_unique_id_for_set(&comp_start_state)]);
 
                 minimized_dfa
             }
@@ -128,9 +125,9 @@ impl Automaton {
         }
 
         // Then add all transitions
-        for (from_state, _) in &equivalent_states {
+        for from_state in equivalent_states.keys() {
             for c in &self.alphabet {
-                if let Some(to_state) = self.traverse_from(&from_state, c) {
+                if let Some(to_state) = self.traverse_from(*from_state, *c) {
                     if let (Some(dfa_from_state), Some(dfa_to_state)) = (
                         comp_state_to_dfa.get(&from_state),
                         comp_state_to_dfa.get(&to_state),
@@ -182,7 +179,7 @@ impl Automaton {
                     if !marked_states_table[s1 as usize][s2 as usize] {
                         // Check if there is any transition from (s1, s2) to a marked pair
                         for c in &self.alphabet {
-                            match (self.traverse_from(&s1, c), self.traverse_from(&s2, c)) {
+                            match (self.traverse_from(s1, *c), self.traverse_from(s2, *c)) {
                                 (None, Some(s2_to_state)) => {
                                     // There is no transition for s1, there is a transition for s2
                                     if self.accepting_states.contains(&s2_to_state) {
@@ -221,10 +218,10 @@ impl Automaton {
         marked_states_table
     }
 
-    pub fn traverse_from(&self, from_state: &u32, atom: &char) -> Option<u32> {
-        if let Some(transitions) = self.from_transitions.get(from_state) {
+    pub fn traverse_from(&self, from_state: u32, atom: char) -> Option<u32> {
+        if let Some(transitions) = self.from_transitions.get(&from_state) {
             for (to_state, atoms_set) in transitions {
-                if atoms_set.contains(&Some(*atom)) {
+                if atoms_set.contains(&Some(atom)) {
                     return Some(*to_state);
                 }
             }
@@ -400,7 +397,7 @@ impl Automaton {
         for self_from_state in 0..self.states {
             for other_from_state in 0..other.states {
                 let mul_from_state = match pair_to_dfa.get(&(self_from_state, other_from_state)) {
-                    Some(mul_state) => mul_state.clone(),
+                    Some(mul_state) => *mul_state,
                     None => {
                         let mul_from_state = mul_dfa.add_state();
                         pair_to_dfa.insert((self_from_state, other_from_state), mul_from_state);
@@ -415,12 +412,12 @@ impl Automaton {
 
                 for atom in &mul_alphabet {
                     if let (Some(self_to_state), Some(other_to_state)) = (
-                        self.traverse_from(&self_from_state, &atom),
-                        other.traverse_from(&other_from_state, &atom),
+                        self.traverse_from(self_from_state, *atom),
+                        other.traverse_from(other_from_state, *atom),
                     ) {
                         // There is a transition from from_state to a to_state via atom for both self and other
                         let mul_to_state = match pair_to_dfa.get(&(self_to_state, other_to_state)) {
-                            Some(mul_state) => mul_state.clone(),
+                            Some(mul_state) => *mul_state,
                             None => {
                                 let mul_to_state = mul_dfa.add_state();
                                 pair_to_dfa.insert((self_to_state, other_to_state), mul_to_state);
