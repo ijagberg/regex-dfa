@@ -1,5 +1,3 @@
-use super::construct_automaton::*;
-use super::parse_tree::IntoParseTree;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Debug, Default)]
@@ -88,7 +86,7 @@ impl Automaton {
     }
 
     /// Returns a dfa simulating the same functionality of this automaton
-    fn as_dfa(&self) -> Automaton {
+    pub fn as_dfa(&self) -> Automaton {
         match self.start_state {
             Some(start_state) => {
                 let mut minimized_dfa = Automaton::new();
@@ -144,7 +142,7 @@ impl Automaton {
         }
     }
 
-    fn as_minimized_dfa(&self) -> Automaton {
+    pub fn as_minimized_dfa(&self) -> Automaton {
         let equivalent_states = self.get_equivalent_states();
         let mut comp_state_to_dfa = HashMap::new();
         let mut min_dfa = Automaton::new();
@@ -434,13 +432,6 @@ impl Automaton {
         }
     }
 
-    pub fn from<T>(into_parse_tree: T) -> Automaton
-    where
-        T: IntoParseTree,
-    {
-        from_tree(&into_parse_tree.into_parse_tree()).as_dfa()
-    }
-
     pub fn intersection(&self, other: &Automaton) -> Automaton {
         // For each pair of states,
         let mut mul_dfa = Automaton::new();
@@ -504,48 +495,4 @@ fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
     let mut set_as_vector: Vec<u32> = set.iter().cloned().collect();
     set_as_vector.sort();
     format!("{:?}", set_as_vector)
-}
-
-#[test]
-fn test_match_whole() {
-    let test_automaton = Automaton::from("Hello*");
-    assert!(test_automaton.match_whole("Hello"));
-    assert!(test_automaton.match_whole("Helloooo"));
-    assert!(test_automaton.match_whole("Hell"));
-    assert!(!test_automaton.match_whole("Hel"));
-
-    let test_automaton = Automaton::from("Co((o(l|p))|(ward))");
-    assert!(test_automaton.match_whole("Cool"));
-    assert!(test_automaton.match_whole("Coop"));
-    assert!(test_automaton.match_whole("Coward"));
-    assert!(!test_automaton.match_whole("Cooward"));
-}
-
-#[test]
-fn test_match_first_prefix() {
-    let test_automaton = Automaton::from("Hello*");
-    assert_eq!(
-        "Hell",
-        test_automaton.match_first_prefix("Hello, world!").unwrap()
-    );
-    assert!(test_automaton.match_first_prefix("Hi, world!").is_none());
-}
-
-#[test]
-fn test_match_all_prefixes() {
-    let test_automaton = Automaton::from("Hello*");
-    assert_eq!(
-        vec!["Hell", "Hello", "Helloo"],
-        test_automaton.match_all_prefixes("Helloo!")
-    );
-    assert!(test_automaton.match_all_prefixes("Yo, earth!").is_empty());
-}
-
-#[test]
-fn test_match_substrings() {
-    let test_automaton = Automaton::from("H*ello*");
-    assert_eq!(
-        vec!["ell", "ello", "elloo"],
-        test_automaton.match_substrings("ellooo")
-    )
 }
