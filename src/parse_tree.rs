@@ -3,11 +3,12 @@ use regex_syntax::ast::Ast;
 
 pub fn from_ast(ast_tree: &Ast) -> Automaton {
     match ast_tree {
-        Ast::Concat(concat) => build_concatenation(concat),
-        Ast::Repetition(repetition) => build_repetition(repetition),
-        Ast::Literal(literal) => build_literal(literal.c),
-        Ast::Alternation(alternation) => build_alternation(alternation),
-        _ => panic!("No support for this type of AST yet"),
+        Ast::Concat(ast) => build_concatenation(ast),
+        Ast::Repetition(ast) => build_repetition(ast),
+        Ast::Literal(ast) => build_literal(ast.c),
+        Ast::Alternation(ast) => build_alternation(ast),
+        Ast::Group(ast) => from_ast(&ast.ast),
+        x => panic!("No support for {:?} (yet)", x),
     }
 }
 
@@ -236,4 +237,25 @@ fn repetition_one_or_more() {
     assert!(repetition_minimized_dfa.match_whole("aaa"));
     assert!(!repetition_minimized_dfa.match_whole(""));
     assert!(!repetition_minimized_dfa.match_whole("b"));
+}
+
+#[test]
+fn group() {
+    use regex_syntax::ast::parse::Parser;
+    let group_ast = Parser::new().parse("(ab)*").unwrap();
+    println!("group_ast: {:#?}", group_ast);
+
+    let group_nfa = from_ast(&group_ast);
+    println!("group_nfa: {:#?}", group_nfa);
+
+    let group_dfa = group_nfa.as_dfa();
+    println!("group_dfa: {:#?}", group_dfa);
+
+    let group_minimized_dfa = group_dfa.as_minimized_dfa();
+    println!("group_minimized_dfa: {:#?}", group_minimized_dfa);
+    assert!(group_minimized_dfa.match_whole("ab"));
+    assert!(group_minimized_dfa.match_whole("abab"));
+    assert!(group_minimized_dfa.match_whole(""));
+    assert!(!group_minimized_dfa.match_whole("b"));
+    assert!(!group_minimized_dfa.match_whole("aba"));
 }
