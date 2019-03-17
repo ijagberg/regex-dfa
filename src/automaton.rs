@@ -207,10 +207,17 @@ impl Automaton {
     }
 
     fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
+        let dead_state = self.states;
         let mut marked_states_table: Vec<Vec<bool>> =
-            vec![vec![false; self.states as usize]; self.states as usize];
-        for non_accepting_state in (0..self.states).filter(|e| !self.accepting_states.contains(e)) {
-            for accepting_state in &self.accepting_states {
+            vec![vec![false; self.states as usize + 1]; self.states as usize + 1];
+        for accepting_state in &self.accepting_states {
+            // Dead state is never accepting
+            marked_states_table[*accepting_state as usize][dead_state as usize] = true;
+            marked_states_table[dead_state as usize][*accepting_state as usize] = true;
+
+            for non_accepting_state in
+                (0..self.states).filter(|e| !self.accepting_states.contains(e))
+            {
                 marked_states_table[non_accepting_state as usize][*accepting_state as usize] = true;
                 marked_states_table[*accepting_state as usize][non_accepting_state as usize] = true;
             }
@@ -220,7 +227,7 @@ impl Automaton {
             marked_a_pair = false;
 
             // Choose a pair of states
-            'mark: for s1 in 0..self.states {
+            'mark: for s1 in 0..self.states + 1 {
                 for s2 in 0..s1 {
                     println!("s1, s2: {:?}", (s1, s2));
                     if !marked_states_table[s1 as usize][s2 as usize] {
@@ -228,8 +235,10 @@ impl Automaton {
                         for c in &self.alphabet {
                             match (self.traverse_from(s1, *c), self.traverse_from(s2, *c)) {
                                 (None, Some(s2_to_state)) => {
-                                    // There is no transition for s1, there is a transition for s2
-                                    if self.accepting_states.contains(&s2_to_state) {
+                                    // s1 transitions to dead state, there is a transition for s2
+                                    if marked_states_table[dead_state as usize]
+                                        [s2_to_state as usize]
+                                    {
                                         marked_states_table[s1 as usize][s2 as usize] = true;
                                         marked_states_table[s2 as usize][s1 as usize] = true;
                                         marked_a_pair = true;
@@ -237,8 +246,10 @@ impl Automaton {
                                     }
                                 }
                                 (Some(s1_to_state), None) => {
-                                    // There is a transition for s1, there is no transition for s2
-                                    if self.accepting_states.contains(&s1_to_state) {
+                                    // s2 transitions to dead state, there is a transition for s1
+                                    if marked_states_table[dead_state as usize]
+                                        [s1_to_state as usize]
+                                    {
                                         marked_states_table[s1 as usize][s2 as usize] = true;
                                         marked_states_table[s2 as usize][s1 as usize] = true;
                                         marked_a_pair = true;
