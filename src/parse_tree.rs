@@ -14,19 +14,32 @@ pub fn from_ast(ast_tree: &Ast) -> Automaton {
 
 fn build_concatenation(concat_ast: &regex_syntax::ast::Concat) -> Automaton {
     let mut concat_automaton = Automaton::new();
-    let concat_automaton_start_state = concat_automaton.add_state();
-    let concat_automaton_end_state = concat_automaton.add_state();
+    let concat_start_state = concat_automaton.add_state();
+    concat_automaton.set_start_state(concat_start_state);
 
-    let mut asts_iter = concat_ast.asts.iter();
+    let mut concat_end_state = concat_start_state;
 
-    // Add first append_automaton to the concatenation
-    let first_append_automaton = from_ast(asts_iter.next().unwrap());
-    
+    for append_ast in &concat_ast.asts {
+        println!("concat_end_state: {}", concat_end_state);
+        let append_automaton = from_ast(append_ast);
+        assert_eq!(append_automaton.accepting_states.len(), 1);
+        let append_start_state = append_automaton.start_state.unwrap();
+        let append_end_state = *append_automaton.accepting_states.iter().next().unwrap();
+        let concat_append_offset = concat_automaton.states;
+        concat_automaton.add_states_and_transitions(append_automaton);
 
+        // Add transition from previous append_automaton's end state to current append_automaton's start state
+        concat_automaton.add_transition(
+            concat_end_state,
+            append_start_state + concat_append_offset,
+            None,
+        );
 
-    concat_automaton.set_start_state(concat_automaton_start_state);
-    concat_automaton.clear_accepting();
-    concat_automaton.set_accepting(concat_automaton_end_state, true);
+        // Change end state to be the current append_automaton's end state
+        concat_end_state = append_end_state + concat_append_offset;
+        concat_automaton.clear_accepting();
+        concat_automaton.set_accepting(concat_end_state, true);
+    }
 
     concat_automaton
 }
@@ -139,29 +152,29 @@ fn build_literal(c: char) -> Automaton {
 #[test]
 fn print_alternation() {
     let alternation_ast = Parser::new().parse("a|b|c").unwrap();
-    println!("{:#?}", alternation_ast);
+    println!("alternation_ast: {:#?}", alternation_ast);
 
     let automaton = from_ast(&alternation_ast);
-    println!("{:#?}", automaton);
+    println!("automaton: {:#?}", automaton);
 
     let dfa = automaton.as_dfa();
-    println!("{:#?}", dfa);
+    println!("dfa: {:#?}", dfa);
 
     let minimized_dfa = dfa.as_minimized_dfa();
-    println!("{:#?}", minimized_dfa);
+    println!("minimized_dfa: {:#?}", minimized_dfa);
 }
 
 #[test]
 fn print_concat() {
     let concat_ast = Parser::new().parse("abc").unwrap();
-    println!("{:#?}", concat_ast);
+    println!("concat_ast: {:#?}", concat_ast);
 
     let automaton = from_ast(&concat_ast);
-    println!("{:#?}", automaton);
+    println!("automaton: {:#?}", automaton);
 
     let dfa = automaton.as_dfa();
-    println!("{:#?}", dfa);
+    println!("dfa: {:#?}", dfa);
 
     let minimized_dfa = dfa.as_minimized_dfa();
-    println!("{:#?}", minimized_dfa);
+    println!("minimized_dfa: {:#?}", minimized_dfa);
 }

@@ -143,7 +143,7 @@ impl Automaton {
     }
 
     pub fn as_minimized_dfa(&self) -> Automaton {
-        let equivalent_states = self.get_equivalent_states();
+        let equivalent_states = dbg!(self.get_equivalent_states());
         let mut comp_state_to_dfa = HashMap::new();
         let mut min_dfa = Automaton::new();
 
@@ -192,7 +192,7 @@ impl Automaton {
     }
 
     fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {
-        let marked_states = self.get_marked_states_table();
+        let marked_states = dbg!(self.get_marked_states_table());
         let mut equivalent_composite_states = HashMap::new();
         for s1 in 0..self.states {
             let mut equivalent_to_s1 = HashSet::new();
@@ -209,14 +209,10 @@ impl Automaton {
     fn get_marked_states_table(&self) -> Vec<Vec<bool>> {
         let mut marked_states_table: Vec<Vec<bool>> =
             vec![vec![false; self.states as usize]; self.states as usize];
-        for non_accepting_state in 0..self.states {
-            if !self.accepting_states.contains(&non_accepting_state) {
-                for accepting_state in &self.accepting_states {
-                    marked_states_table[non_accepting_state as usize]
-                        [(*accepting_state) as usize] = true;
-                    marked_states_table[(*accepting_state) as usize]
-                        [non_accepting_state as usize] = true;
-                }
+        for non_accepting_state in (0..self.states).filter(|e| !self.accepting_states.contains(e)) {
+            for accepting_state in &self.accepting_states {
+                marked_states_table[non_accepting_state as usize][*accepting_state as usize] = true;
+                marked_states_table[*accepting_state as usize][non_accepting_state as usize] = true;
             }
         }
         let mut marked_a_pair = true;
@@ -226,6 +222,7 @@ impl Automaton {
             // Choose a pair of states
             'mark: for s1 in 0..self.states {
                 for s2 in 0..s1 {
+                    println!("s1, s2: {:?}", (s1, s2));
                     if !marked_states_table[s1 as usize][s2 as usize] {
                         // Check if there is any transition from (s1, s2) to a marked pair
                         for c in &self.alphabet {
