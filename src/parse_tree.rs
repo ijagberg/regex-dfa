@@ -8,7 +8,7 @@ pub fn from_ast(ast_tree: &Ast) -> Automaton {
         Ast::Literal(ast) => build_literal(ast.c),
         Ast::Alternation(ast) => build_alternation(ast),
         Ast::Group(ast) => from_ast(&ast.ast),
-        x => panic!("No support for {:?} (yet)", x),
+        unsupported => panic!("No support for {} (yet)", unsupported),
     }
 }
 
@@ -72,7 +72,7 @@ fn build_repetition(repetition_ast: &regex_syntax::ast::Repetition) -> Automaton
         None,
     );
 
-    match repetition_ast.op.kind {
+    match &repetition_ast.op.kind {
         RepetitionKind::OneOrMore => {
             // Add transition from repetition_automaton's end state to repetition_automaton's start state
             repetition_automaton.add_transition(repetition_end_state, repetition_start_state, None);
@@ -87,8 +87,8 @@ fn build_repetition(repetition_ast: &regex_syntax::ast::Repetition) -> Automaton
             // Add transition from repetition_automaton's start state to repetition_automaton's end state
             repetition_automaton.add_transition(repetition_start_state, repetition_end_state, None);
         }
-        RepetitionKind::Range(_) => {
-            panic!("RepetitionKind::Range is not supported yet!");
+        unsupported => {
+            panic!("{:?} is not supported yet", unsupported);
         }
     }
 
