@@ -33,6 +33,10 @@ impl Automaton {
     /// `false` if the dfa is in a non-accepting state after traversing through all of `input`, or if there is some point where there is no transition for the current atom being processed
     pub fn match_whole(&self, input: &str) -> bool {
         let mut current_state = self.start_state.expect("No start state set for dfa");
+        if input.is_empty() {
+            return self.accepting_states.contains(&current_state);
+        }
+
         for current_atom in input.chars() {
             match self.traverse_from(current_state, current_atom) {
                 Some(next_state) => current_state = next_state,
@@ -106,6 +110,10 @@ impl Automaton {
                         None => {
                             let dfa_id = minimized_dfa.add_state();
                             comp_to_dfa.insert(from_comp_id, dfa_id);
+                            minimized_dfa.set_accepting(
+                                dfa_id,
+                                from_comp.iter().any(|s| self.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
+                            );
                             dfa_id
                         }
                     };
@@ -143,7 +151,7 @@ impl Automaton {
     }
 
     pub fn as_minimized_dfa(&self) -> Automaton {
-        let equivalent_states = dbg!(self.get_equivalent_states());
+        let equivalent_states = self.get_equivalent_states();
         let mut comp_state_to_dfa = HashMap::new();
         let mut min_dfa = Automaton::new();
 
@@ -192,7 +200,7 @@ impl Automaton {
     }
 
     fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {
-        let marked_states = dbg!(self.get_marked_states_table());
+        let marked_states = self.get_marked_states_table();
         let mut equivalent_composite_states = HashMap::new();
         for s1 in 0..self.states {
             let mut equivalent_to_s1 = HashSet::new();
@@ -227,9 +235,8 @@ impl Automaton {
             marked_a_pair = false;
 
             // Choose a pair of states
-            'mark: for s1 in 0..self.states + 1 {
+            'mark: for s1 in 0..=self.states {
                 for s2 in 0..s1 {
-                    println!("s1, s2: {:?}", (s1, s2));
                     if !marked_states_table[s1 as usize][s2 as usize] {
                         // Check if there is any transition from (s1, s2) to a marked pair
                         for c in &self.alphabet {

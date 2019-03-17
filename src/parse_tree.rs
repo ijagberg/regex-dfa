@@ -1,5 +1,4 @@
 use super::automaton::Automaton;
-use regex_syntax::ast::parse::Parser;
 use regex_syntax::ast::Ast;
 
 pub fn from_ast(ast_tree: &Ast) -> Automaton {
@@ -150,31 +149,91 @@ fn build_literal(c: char) -> Automaton {
 }
 
 #[test]
-fn print_alternation() {
+fn alternation() {
+    use regex_syntax::ast::parse::Parser;
     let alternation_ast = Parser::new().parse("a|b|c").unwrap();
-    println!("alternation_ast: {:#?}", alternation_ast);
+    // println!("alternation_ast: {:#?}", alternation_ast);
 
-    let automaton = from_ast(&alternation_ast);
-    println!("automaton: {:#?}", automaton);
-
-    let dfa = automaton.as_dfa();
-    println!("dfa: {:#?}", dfa);
-
-    let minimized_dfa = dfa.as_minimized_dfa();
-    println!("minimized_dfa: {:#?}", minimized_dfa);
+    let automaton = from_ast(&alternation_ast).as_dfa().as_minimized_dfa();
+    assert!(automaton.match_whole("a"));
+    assert!(automaton.match_whole("b"));
+    assert!(automaton.match_whole("c"));
+    assert!(!automaton.match_whole("abc"));
+    assert!(!automaton.match_whole("d"));
 }
 
 #[test]
-fn print_concat() {
+fn concat() {
+    use regex_syntax::ast::parse::Parser;
     let concat_ast = Parser::new().parse("abc").unwrap();
-    println!("concat_ast: {:#?}", concat_ast);
+    // println!("concat_ast: {:#?}", concat_ast);
 
-    let automaton = from_ast(&concat_ast);
-    println!("automaton: {:#?}", automaton);
+    let automaton = from_ast(&concat_ast).as_dfa().as_minimized_dfa();
+    assert!(automaton.match_whole("abc"));
+    assert!(!automaton.match_whole("a"));
+    assert!(!automaton.match_whole("b"));
+    assert!(!automaton.match_whole("c"));
+    assert!(!automaton.match_whole("abcd"));
+}
 
-    let dfa = automaton.as_dfa();
-    println!("dfa: {:#?}", dfa);
+#[test]
+fn repetition_zero_or_more() {
+    use regex_syntax::ast::parse::Parser;
+    let repetition_ast = Parser::new().parse("a*").unwrap();
+    // println!("repetition_ast: {:#?}", repetition_ast);
 
-    let minimized_dfa = dfa.as_minimized_dfa();
-    println!("minimized_dfa: {:#?}", minimized_dfa);
+    let repetition_nfa = from_ast(&repetition_ast);
+    // println!("repetition_nfa: {:#?}", repetition_nfa);
+
+    let repetition_dfa = repetition_nfa.as_dfa();
+    // println!("repetition_dfa: {:#?}", repetition_dfa);
+
+    let repetition_minimized_dfa = repetition_dfa.as_minimized_dfa();
+    // println!("repetition_minimized_dfa: {:#?}", repetition_minimized_dfa);
+    assert!(repetition_minimized_dfa.match_whole("a"));
+    assert!(repetition_minimized_dfa.match_whole("aa"));
+    assert!(repetition_minimized_dfa.match_whole("aaa"));
+    assert!(repetition_minimized_dfa.match_whole(""));
+    assert!(!repetition_minimized_dfa.match_whole("b"));
+}
+
+#[test]
+fn repetition_zero_or_one() {
+    use regex_syntax::ast::parse::Parser;
+    let repetition_ast = Parser::new().parse("a?").unwrap();
+    // println!("repetition_ast: {:#?}", repetition_ast);
+
+    let repetition_nfa = from_ast(&repetition_ast);
+    // println!("repetition_nfa: {:#?}", repetition_nfa);
+
+    let repetition_dfa = repetition_nfa.as_dfa();
+    // println!("repetition_dfa: {:#?}", repetition_dfa);
+
+    let repetition_minimized_dfa = repetition_dfa.as_minimized_dfa();
+    // println!("repetition_minimized_dfa: {:#?}", repetition_minimized_dfa);
+    assert!(repetition_minimized_dfa.match_whole(""));
+    assert!(repetition_minimized_dfa.match_whole("a"));
+    assert!(!repetition_minimized_dfa.match_whole("aa"));
+    assert!(!repetition_minimized_dfa.match_whole("b"));
+}
+
+#[test]
+fn repetition_one_or_more() {
+    use regex_syntax::ast::parse::Parser;
+    let repetition_ast = Parser::new().parse("a+").unwrap();
+    // println!("repetition_ast: {:#?}", repetition_ast);
+
+    let repetition_nfa = from_ast(&repetition_ast);
+    // println!("repetition_nfa: {:#?}", repetition_nfa);
+
+    let repetition_dfa = repetition_nfa.as_dfa();
+    // println!("repetition_dfa: {:#?}", repetition_dfa);
+
+    let repetition_minimized_dfa = repetition_dfa.as_minimized_dfa();
+    // println!("repetition_minimized_dfa: {:#?}", repetition_minimized_dfa);
+    assert!(repetition_minimized_dfa.match_whole("a"));
+    assert!(repetition_minimized_dfa.match_whole("aa"));
+    assert!(repetition_minimized_dfa.match_whole("aaa"));
+    assert!(!repetition_minimized_dfa.match_whole(""));
+    assert!(!repetition_minimized_dfa.match_whole("b"));
 }
