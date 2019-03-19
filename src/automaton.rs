@@ -89,6 +89,40 @@ impl Automaton {
         matched_substrings
     }
 
+    pub fn match_longest_prefix<'a>(&self, input: &'a str) -> Option<&'a str> {
+        let mut longest_match: Option<&'a str> = None;
+
+        let mut current_state = self.start_state.expect("No start state set for dfa");
+        for (index, current_atom) in input.chars().enumerate() {
+            if self.accepting_states.contains(&current_state) {
+                longest_match = Some(&input[0..index]);
+            }
+            match self.traverse_from(current_state, current_atom) {
+                Some(next_state) => current_state = next_state,
+                None => break,
+            }
+        }
+        longest_match
+    }
+
+    pub fn match_longest_substring<'a>(&self, input: &'a str) -> Option<&'a str> {
+        let mut longest_substring: Option<&'a str> = None;
+
+        for (index, _) in input.chars().enumerate() {
+            if let Some(prefix) = self.match_longest_prefix(&input[index..]) {
+                match longest_substring {
+                    Some(substring) => {
+                        if prefix.len() > substring.len() {
+                            longest_substring = Some(prefix)
+                        }
+                    }
+                    None => longest_substring = Some(prefix),
+                }
+            }
+        }
+        longest_substring
+    }
+
     /// Returns a dfa simulating the same functionality of this automaton
     pub fn as_dfa(&self) -> Automaton {
         match self.start_state {
