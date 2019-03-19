@@ -184,6 +184,16 @@ impl Automaton {
         }
     }
 
+    pub fn traverse_from(&self, from_state: u32, atom: char) -> Option<u32> {
+        if let Some(transitions) = self.from_transitions.get(&from_state) {
+            for (to_state, atoms_set) in transitions {
+                if atoms_set.contains(&Some(atom)) {
+                    return Some(*to_state);
+                }
+            }
+        }
+        None
+    }
     pub fn as_minimized_dfa(&self) -> Automaton {
         let equivalent_states = self.get_equivalent_states();
         let mut comp_state_to_dfa = HashMap::new();
@@ -231,6 +241,112 @@ impl Automaton {
         }
 
         min_dfa
+    }
+
+    pub fn add_states_and_transitions(&mut self, other_dfa: Automaton) {
+        let states_offset = self.states;
+
+        // Add states and transitions to concatenated dfa
+        self.add_states(other_dfa.states);
+        for from_transition in other_dfa.from_transitions {
+            let from_state = from_transition.0;
+            for to_states in from_transition.1 {
+                let to_state = to_states.0;
+                for atom in to_states.1 {
+                    self.add_transition(from_state + states_offset, to_state + states_offset, atom);
+                }
+            }
+        }
+    }
+    pub fn add_state(&mut self) -> u32 {
+        let states_before_adding = self.states;
+        self.states += 1;
+        states_before_adding
+    }
+
+    pub fn add_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
+        if let Some(c) = atom {
+            self.alphabet.insert(c);
+        }
+        self.add_from_transition(from_state, to_state, atom);
+        self.add_to_transition(from_state, to_state, atom);
+    }
+
+    pub fn clear_accepting(&mut self) {
+        self.accepting_states.clear();
+    }
+
+    pub fn set_accepting(&mut self, state: u32, accepting: bool) {
+        if state < self.states {
+            if accepting {
+                self.accepting_states.insert(state);
+            } else {
+                self.accepting_states.remove(&state);
+            }
+        }
+    }
+
+    pub fn set_start_state(&mut self, state: u32) {
+        if state < self.states {
+            self.start_state = Some(state);
+        }
+    }
+
+    pub fn intersection(&self, other: &Automaton) -> Automaton {
+        // For each pair of states,
+        let mut mul_dfa = Automaton::new();
+        let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
+        let mut pair_to_dfa: HashMap<(u32, u32), u32> = HashMap::new();
+        for self_from_state in 0..self.states {
+            for other_from_state in 0..other.states {
+                let mul_from_state = match pair_to_dfa.get(&(self_from_state, other_from_state)) {
+                    Some(mul_state) => *mul_state,
+                    None => {
+                        let mul_from_state = mul_dfa.add_state();
+                        pair_to_dfa.insert((self_from_state, other_from_state), mul_from_state);
+                        mul_dfa.set_accepting(
+                            mul_from_state,
+                            self.accepting_states.contains(&self_from_state)
+                                && other.accepting_states.contains(&other_from_state),
+                        );
+                        mul_from_state
+                    }
+                };
+
+                for atom in &mul_alphabet {
+                    if let (Some(self_to_state), Some(other_to_state)) = (
+                        self.traverse_from(self_from_state, *atom),
+                        other.traverse_from(other_from_state, *atom),
+                    ) {
+                        // There is a transition from from_state to a to_state via atom for both self and other
+                        let mul_to_state = match pair_to_dfa.get(&(self_to_state, other_to_state)) {
+                            Some(mul_state) => *mul_state,
+                            None => {
+                                let mul_to_state = mul_dfa.add_state();
+                                pair_to_dfa.insert((self_to_state, other_to_state), mul_to_state);
+                                mul_dfa.set_accepting(
+                                    mul_to_state,
+                                    self.accepting_states.contains(&self_to_state)
+                                        && other.accepting_states.contains(&other_to_state),
+                                );
+                                mul_to_state
+                            }
+                        };
+
+                        // Add transition from mul_from_state to mul_to_state
+                        mul_dfa.add_transition(mul_from_state, mul_to_state, Some(*atom));
+                    }
+                }
+
+                // Set start state in mul_dfa
+                if let Some(mul_start_state) =
+                    pair_to_dfa.get(&(self.start_state.unwrap(), other.start_state.unwrap()))
+                {
+                    mul_dfa.set_start_state(*mul_start_state);
+                }
+            }
+        }
+        mul_dfa.as_minimized_dfa()
     }
 
     fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {
@@ -317,17 +433,6 @@ impl Automaton {
         marked_states_table
     }
 
-    pub fn traverse_from(&self, from_state: u32, atom: char) -> Option<u32> {
-        if let Some(transitions) = self.from_transitions.get(&from_state) {
-            for (to_state, atoms_set) in transitions {
-                if atoms_set.contains(&Some(atom)) {
-                    return Some(*to_state);
-                }
-            }
-        }
-        None
-    }
-
     /// Returns the set of states that can be reached from a given starting state
     /// without reading any input (only traversing epsilon-transitions)
     ///
@@ -375,30 +480,6 @@ impl Automaton {
         }
 
         atom_closure
-    }
-
-    pub fn add_states_and_transitions(&mut self, other_dfa: Automaton) {
-        let states_offset = self.states;
-
-        // Add states and transitions to concatenated dfa
-        self.add_states(other_dfa.states);
-        for from_transition in other_dfa.from_transitions {
-            let from_state = from_transition.0;
-            for to_states in from_transition.1 {
-                let to_state = to_states.0;
-                for atom in to_states.1 {
-                    self.add_transition(from_state + states_offset, to_state + states_offset, atom);
-                }
-            }
-        }
-    }
-
-    pub fn add_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
-        if let Some(c) = atom {
-            self.alphabet.insert(c);
-        }
-        self.add_from_transition(from_state, to_state, atom);
-        self.add_to_transition(from_state, to_state, atom);
     }
 
     fn add_from_transition(&mut self, from_state: u32, to_state: u32, atom: Option<char>) {
@@ -451,91 +532,8 @@ impl Automaton {
         }
     }
 
-    pub fn add_state(&mut self) -> u32 {
-        let states_before_adding = self.states;
-        self.states += 1;
-        states_before_adding
-    }
-
     fn add_states(&mut self, states: u32) {
         self.states += states;
-    }
-
-    pub fn clear_accepting(&mut self) {
-        self.accepting_states.clear();
-    }
-
-    pub fn set_accepting(&mut self, state: u32, accepting: bool) {
-        if state < self.states {
-            if accepting {
-                self.accepting_states.insert(state);
-            } else {
-                self.accepting_states.remove(&state);
-            }
-        }
-    }
-
-    pub fn set_start_state(&mut self, state: u32) {
-        if state < self.states {
-            self.start_state = Some(state);
-        }
-    }
-
-    pub fn intersection(&self, other: &Automaton) -> Automaton {
-        // For each pair of states,
-        let mut mul_dfa = Automaton::new();
-        let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
-        let mut pair_to_dfa: HashMap<(u32, u32), u32> = HashMap::new();
-        for self_from_state in 0..self.states {
-            for other_from_state in 0..other.states {
-                let mul_from_state = match pair_to_dfa.get(&(self_from_state, other_from_state)) {
-                    Some(mul_state) => *mul_state,
-                    None => {
-                        let mul_from_state = mul_dfa.add_state();
-                        pair_to_dfa.insert((self_from_state, other_from_state), mul_from_state);
-                        mul_dfa.set_accepting(
-                            mul_from_state,
-                            self.accepting_states.contains(&self_from_state)
-                                && other.accepting_states.contains(&other_from_state),
-                        );
-                        mul_from_state
-                    }
-                };
-
-                for atom in &mul_alphabet {
-                    if let (Some(self_to_state), Some(other_to_state)) = (
-                        self.traverse_from(self_from_state, *atom),
-                        other.traverse_from(other_from_state, *atom),
-                    ) {
-                        // There is a transition from from_state to a to_state via atom for both self and other
-                        let mul_to_state = match pair_to_dfa.get(&(self_to_state, other_to_state)) {
-                            Some(mul_state) => *mul_state,
-                            None => {
-                                let mul_to_state = mul_dfa.add_state();
-                                pair_to_dfa.insert((self_to_state, other_to_state), mul_to_state);
-                                mul_dfa.set_accepting(
-                                    mul_to_state,
-                                    self.accepting_states.contains(&self_to_state)
-                                        && other.accepting_states.contains(&other_to_state),
-                                );
-                                mul_to_state
-                            }
-                        };
-
-                        // Add transition from mul_from_state to mul_to_state
-                        mul_dfa.add_transition(mul_from_state, mul_to_state, Some(*atom));
-                    }
-                }
-
-                // Set start state in mul_dfa
-                if let Some(mul_start_state) =
-                    pair_to_dfa.get(&(self.start_state.unwrap(), other.start_state.unwrap()))
-                {
-                    mul_dfa.set_start_state(*mul_start_state);
-                }
-            }
-        }
-        mul_dfa.as_minimized_dfa()
     }
 }
 

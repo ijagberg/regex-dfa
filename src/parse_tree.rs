@@ -2,12 +2,16 @@ use super::automaton::Automaton;
 use regex_syntax::ast::Ast;
 
 pub fn from_ast(ast_tree: &Ast) -> Automaton {
+    from_tree(ast_tree).as_dfa().as_minimized_dfa()
+}
+
+fn from_tree(ast_tree: &Ast) -> Automaton {
     match ast_tree {
         Ast::Concat(ast) => build_concatenation(ast),
         Ast::Repetition(ast) => build_repetition(ast),
         Ast::Literal(ast) => build_literal(ast.c),
         Ast::Alternation(ast) => build_alternation(ast),
-        Ast::Group(ast) => from_ast(&ast.ast),
+        Ast::Group(ast) => from_tree(&ast.ast),
         unsupported => panic!("No support for {} (yet)", unsupported),
     }
 }
@@ -169,7 +173,7 @@ fn concat() {
     let concat_ast = Parser::new().parse("abc").unwrap();
     // println!("concat_ast: {:#?}", concat_ast);
 
-    let automaton = from_ast(&concat_ast).as_dfa().as_minimized_dfa();
+    let automaton = from_ast(&concat_ast);
     assert!(automaton.match_whole("abc"));
     assert!(!automaton.match_whole("a"));
     assert!(!automaton.match_whole("b"));
