@@ -194,6 +194,7 @@ impl Automaton {
         }
         None
     }
+
     pub fn as_minimized_dfa(&self) -> Automaton {
         let equivalent_states = self.get_equivalent_states();
         let mut comp_state_to_dfa = HashMap::new();
@@ -347,6 +348,31 @@ impl Automaton {
             }
         }
         mul_dfa.as_minimized_dfa()
+    }
+
+    pub fn to_dot_format(&self) -> String {
+        let lines = std::iter::once("digraph g {".into())
+            .chain(
+                self.from_transitions
+                    .iter()
+                    .flat_map(|(from_state, to_states)| {
+                        to_states.iter().map(move |(to_state, symbols)| {
+                            format!(
+                                "{} -> {} [label={}];",
+                                from_state,
+                                to_state,
+                                symbols
+                                    .iter()
+                                    .filter_map(|s| *s)
+                                    .map(|s| s.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(", ")
+                            )
+                        })
+                    }),
+            )
+            .chain(std::iter::once("}".into())).collect::<Vec<String>>();
+        lines.join("\n")
     }
 
     fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {

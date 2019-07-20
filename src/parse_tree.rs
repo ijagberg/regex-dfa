@@ -24,7 +24,6 @@ fn build_concatenation(concat_ast: &regex_syntax::ast::Concat) -> Automaton {
     let mut concat_end_state = concat_start_state;
 
     for append_ast in &concat_ast.asts {
-        println!("concat_end_state: {}", concat_end_state);
         let append_automaton = from_ast(append_ast);
         assert_eq!(append_automaton.accepting_states.len(), 1);
         let append_start_state = append_automaton.start_state.unwrap();
@@ -171,30 +170,27 @@ fn alternation() {
 fn concat() {
     use regex_syntax::ast::parse::Parser;
     let concat_ast = Parser::new().parse("abc").unwrap();
-    // println!("concat_ast: {:#?}", concat_ast);
-
-    let automaton = from_ast(&concat_ast);
-    assert!(automaton.match_whole("abc"));
-    assert!(!automaton.match_whole("a"));
-    assert!(!automaton.match_whole("b"));
-    assert!(!automaton.match_whole("c"));
-    assert!(!automaton.match_whole("abcd"));
+    let concat_nfa = from_ast(&concat_ast);
+    let concat_dfa = concat_nfa.as_dfa();
+    let concat_minimized_dfa = concat_dfa.as_minimized_dfa();
+    println!("\"abc\": {:#?}", concat_minimized_dfa);
+    println!("\"abc\": {}", concat_minimized_dfa.to_dot_format());
+    assert!(concat_minimized_dfa.match_whole("abc"));
+    assert!(!concat_minimized_dfa.match_whole("a"));
+    assert!(!concat_minimized_dfa.match_whole("b"));
+    assert!(!concat_minimized_dfa.match_whole("c"));
+    assert!(!concat_minimized_dfa.match_whole("abcd"));
 }
 
 #[test]
 fn repetition_zero_or_more() {
     use regex_syntax::ast::parse::Parser;
     let repetition_ast = Parser::new().parse("a*").unwrap();
-    // println!("repetition_ast: {:#?}", repetition_ast);
-
     let repetition_nfa = from_ast(&repetition_ast);
-    // println!("repetition_nfa: {:#?}", repetition_nfa);
-
     let repetition_dfa = repetition_nfa.as_dfa();
-    // println!("repetition_dfa: {:#?}", repetition_dfa);
-
     let repetition_minimized_dfa = repetition_dfa.as_minimized_dfa();
-    // println!("repetition_minimized_dfa: {:#?}", repetition_minimized_dfa);
+    println!("\"a*\": {:#?}", repetition_minimized_dfa);
+    println!("{}", repetition_minimized_dfa.to_dot_format());
     assert!(repetition_minimized_dfa.match_whole("a"));
     assert!(repetition_minimized_dfa.match_whole("aa"));
     assert!(repetition_minimized_dfa.match_whole("aaa"));
@@ -206,16 +202,11 @@ fn repetition_zero_or_more() {
 fn repetition_zero_or_one() {
     use regex_syntax::ast::parse::Parser;
     let repetition_ast = Parser::new().parse("a?").unwrap();
-    // println!("repetition_ast: {:#?}", repetition_ast);
-
     let repetition_nfa = from_ast(&repetition_ast);
-    // println!("repetition_nfa: {:#?}", repetition_nfa);
-
     let repetition_dfa = repetition_nfa.as_dfa();
-    // println!("repetition_dfa: {:#?}", repetition_dfa);
-
     let repetition_minimized_dfa = repetition_dfa.as_minimized_dfa();
-    // println!("repetition_minimized_dfa: {:#?}", repetition_minimized_dfa);
+    println!("\"a?\": {:#?}", repetition_minimized_dfa);
+    println!("{}", repetition_minimized_dfa.to_dot_format());
     assert!(repetition_minimized_dfa.match_whole(""));
     assert!(repetition_minimized_dfa.match_whole("a"));
     assert!(!repetition_minimized_dfa.match_whole("aa"));
@@ -230,7 +221,6 @@ fn repetition_one_or_more() {
 
     let repetition_nfa = from_ast(&repetition_ast);
     // println!("repetition_nfa: {:#?}", repetition_nfa);
-
     let repetition_dfa = repetition_nfa.as_dfa();
     // println!("repetition_dfa: {:#?}", repetition_dfa);
 
@@ -247,16 +237,11 @@ fn repetition_one_or_more() {
 fn group() {
     use regex_syntax::ast::parse::Parser;
     let group_ast = Parser::new().parse("(ab)*").unwrap();
-    println!("group_ast: {:#?}", group_ast);
 
     let group_nfa = from_ast(&group_ast);
-    println!("group_nfa: {:#?}", group_nfa);
 
     let group_dfa = group_nfa.as_dfa();
-    println!("group_dfa: {:#?}", group_dfa);
-
     let group_minimized_dfa = group_dfa.as_minimized_dfa();
-    println!("group_minimized_dfa: {:#?}", group_minimized_dfa);
     assert!(group_minimized_dfa.match_whole("ab"));
     assert!(group_minimized_dfa.match_whole("abab"));
     assert!(group_minimized_dfa.match_whole(""));
