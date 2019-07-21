@@ -1,62 +1,25 @@
+use crate::automaton::AutomatonKind::Nfa;
 use std::collections::{BTreeSet, HashMap, VecDeque};
 
-#[derive(Debug, Default)]
-pub struct StateMachine {
+#[derive(Debug)]
+pub struct Automaton {
     pub states: u32,
     pub from_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
     pub to_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
     pub start_state: Option<u32>,
     pub accepting_states: BTreeSet<u32>,
     alphabet: BTreeSet<char>,
+    kind: AutomatonKind,
 }
 
-pub enum Automaton {
-    Nfa(StateMachine),
-    Dfa(StateMachine),
-    MinDfa(StateMachine),
+#[derive(Debug)]
+enum AutomatonKind {
+    Nfa,
+    Dfa,
+    MinDfa,
 }
 
 impl Automaton {
-    pub fn from_string(s: &str) -> Result<Automaton, Box<std::error::Error>> {
-        let state_machine = crate::translator::translate(s)?;
-        Ok(Automaton::Nfa(state_machine))
-    }
-
-    pub fn as_dfa(self) -> Automaton {
-        match self {
-            Automaton::Nfa(state_machine) => {
-                let dfa = nfa_to_dfa(&state_machine);
-                Automaton::Dfa(dfa)
-            }
-            automaton => automaton,
-        }
-    }
-
-    pub fn as_min_dfa(self) -> Automaton {
-        match self {
-            Automaton::Nfa(state_machine) => {
-                let dfa = nfa_to_dfa(&state_machine);
-                let min_dfa = dfa_to_minimized_dfa(&dfa);
-                Automaton::MinDfa(min_dfa)
-            }
-            Automaton::Dfa(state_machine) => {
-                let min_dfa = dfa_to_minimized_dfa(&state_machine);
-                Automaton::MinDfa(min_dfa)
-            }
-            automaton => automaton,
-        }
-    }
-
-    pub fn to_dot_format(&self) -> String {
-        match self {
-            Automaton::Nfa(state_machine) => state_machine.to_dot_format(),
-            Automaton::Dfa(state_machine) => state_machine.to_dot_format(),
-            Automaton::MinDfa(state_machine) => state_machine.to_dot_format(),
-        }
-    }
-}
-
-impl StateMachine {
     pub fn new() -> Self {
         Self {
             states: 0,
@@ -65,6 +28,37 @@ impl StateMachine {
             start_state: None,
             accepting_states: BTreeSet::new(),
             alphabet: BTreeSet::new(),
+            kind: AutomatonKind::Nfa,
+        }
+    }
+
+    pub fn from_string(s: &str) -> Result<Automaton, Box<std::error::Error>> {
+        let automaton = crate::translator::translate(s)?;
+        Ok(automaton)
+    }
+
+    pub fn into_dfa(self) -> Automaton {
+        match self.kind {
+            AutomatonKind::Nfa => {
+                let dfa = nfa_to_dfa(&self);
+                dfa
+            }
+            _ => self,
+        }
+    }
+
+    pub fn into_min_dfa(self) -> Automaton {
+        match self.kind {
+            AutomatonKind::Nfa => {
+                let dfa = nfa_to_dfa(&self);
+                let min_dfa = dfa_to_minimized_dfa(&dfa);
+                min_dfa
+            }
+            AutomatonKind::Dfa => {
+                let min_dfa = dfa_to_minimized_dfa(&self);
+                min_dfa
+            }
+            _ => self,
         }
     }
 
@@ -180,7 +174,7 @@ impl StateMachine {
         None
     }
 
-    pub fn add_states_and_transitions(&mut self, other_dfa: StateMachine) {
+    pub fn add_states_and_transitions(&mut self, other_dfa: Automaton) {
         let states_offset = self.states;
 
         // Add states and transitions to concatenated dfa
@@ -195,9 +189,11 @@ impl StateMachine {
             }
         }
     }
+
     pub fn add_state(&mut self) -> u32 {
         let states_before_adding = self.states;
         self.states += 1;
+        self.kind = AutomatonKind::Nfa;
         states_before_adding
     }
 
@@ -207,14 +203,17 @@ impl StateMachine {
         }
         self.add_from_transition(from_state, to_state, atom);
         self.add_to_transition(from_state, to_state, atom);
+        self.kind = AutomatonKind::Nfa;
     }
 
     pub fn clear_accepting(&mut self) {
         self.accepting_states.clear();
+        self.kind = AutomatonKind::Nfa;
     }
 
     pub fn set_accepting(&mut self, state: u32, accepting: bool) {
         if state < self.states {
+            self.kind = AutomatonKind::Nfa;
             if accepting {
                 self.accepting_states.insert(state);
             } else {
@@ -226,12 +225,13 @@ impl StateMachine {
     pub fn set_start_state(&mut self, state: u32) {
         if state < self.states {
             self.start_state = Some(state);
+            self.kind = AutomatonKind::Nfa;
         }
     }
 
-    pub fn intersection(&self, other: &StateMachine) -> StateMachine {
+    pub fn intersection(&self, other: &Automaton) -> Automaton {
         // For each pair of states,
-        let mut mul_dfa = StateMachine::new();
+        let mut mul_dfa = Automaton::new();
         let mul_alphabet: BTreeSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
         let mut pair_to_dfa: HashMap<(u32, u32), u32> = HashMap::new();
         for self_from_state in 0..self.states {
@@ -516,16 +516,16 @@ impl StateMachine {
     }
 }
 
-fn nfa_to_dfa(state_machine: &StateMachine) -> StateMachine {
-    match state_machine.start_state {
+fn nfa_to_dfa(automaton: &Automaton) -> Automaton {
+    match automaton.start_state {
         Some(start_state) => {
-            let mut minimized_dfa = StateMachine::new();
+            let mut minimized_dfa = Automaton::new();
             let mut comp_to_dfa = HashMap::new();
 
             let mut visited_comp = BTreeSet::new();
             let mut to_visit_comp = VecDeque::new();
 
-            let comp_start_state = state_machine.epsilon_closure(start_state);
+            let comp_start_state = automaton.epsilon_closure(start_state);
 
             to_visit_comp.push_back(comp_start_state.clone());
             while let Some(from_comp) = to_visit_comp.pop_front() {
@@ -539,13 +539,13 @@ fn nfa_to_dfa(state_machine: &StateMachine) -> StateMachine {
                             dfa_id,
                             from_comp
                                 .iter()
-                                .any(|s| state_machine.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
+                                .any(|s| automaton.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
                         );
                         dfa_id
                     }
                 };
-                for c in &state_machine.alphabet {
-                    let to_comp = state_machine.atom_closure(&from_comp, *c);
+                for c in &automaton.alphabet {
+                    let to_comp = automaton.atom_closure(&from_comp, *c);
                     if !to_comp.is_empty() {
                         if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp) {
                             // Composite state is already in the minimized dfa
@@ -557,7 +557,7 @@ fn nfa_to_dfa(state_machine: &StateMachine) -> StateMachine {
                                 to_dfa_id,
                                 to_comp
                                     .iter()
-                                    .any(|s| state_machine.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
+                                    .any(|s| automaton.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
                             );
                             to_visit_comp.push_back(to_comp.clone());
                             comp_to_dfa.insert(to_comp, to_dfa_id);
@@ -568,7 +568,7 @@ fn nfa_to_dfa(state_machine: &StateMachine) -> StateMachine {
             }
 
             minimized_dfa.set_start_state(comp_to_dfa[&comp_start_state]);
-
+            minimized_dfa.kind = AutomatonKind::Dfa;
             minimized_dfa
         }
         None => {
@@ -577,10 +577,10 @@ fn nfa_to_dfa(state_machine: &StateMachine) -> StateMachine {
     }
 }
 
-fn dfa_to_minimized_dfa(state_machine: &StateMachine) -> StateMachine {
-    let equivalent_states = state_machine.get_equivalent_states();
+fn dfa_to_minimized_dfa(automaton: &Automaton) -> Automaton {
+    let equivalent_states = automaton.get_equivalent_states();
     let mut comp_state_to_dfa = HashMap::new();
-    let mut min_dfa = StateMachine::new();
+    let mut min_dfa = Automaton::new();
 
     // First add all states to minimized dfa
     for (s1, equivalent_to_s1) in &equivalent_states {
@@ -593,7 +593,7 @@ fn dfa_to_minimized_dfa(state_machine: &StateMachine) -> StateMachine {
                 comp_state_to_dfa.insert(equivalent_state, dfa_state_id);
             }
 
-            if let Some(comp_start_state) = state_machine.start_state {
+            if let Some(comp_start_state) = automaton.start_state {
                 if equivalent_to_s1.contains(&comp_start_state) {
                     min_dfa.set_start_state(dfa_state_id);
                 }
@@ -604,15 +604,15 @@ fn dfa_to_minimized_dfa(state_machine: &StateMachine) -> StateMachine {
                 dfa_state_id,
                 equivalent_to_s1
                     .iter()
-                    .all(|&state| state_machine.accepting_states.contains(&state)),
+                    .all(|&state| automaton.accepting_states.contains(&state)),
             );
         }
     }
 
     // Then add all transitions
     for from_state in equivalent_states.keys() {
-        for c in &state_machine.alphabet {
-            if let Some(to_state) = state_machine.traverse_from(*from_state, *c) {
+        for c in &automaton.alphabet {
+            if let Some(to_state) = automaton.traverse_from(*from_state, *c) {
                 if let (Some(dfa_from_state), Some(dfa_to_state)) = (
                     comp_state_to_dfa.get(&from_state),
                     comp_state_to_dfa.get(&to_state),
@@ -623,5 +623,6 @@ fn dfa_to_minimized_dfa(state_machine: &StateMachine) -> StateMachine {
         }
     }
 
+    min_dfa.kind = AutomatonKind::MinDfa;
     min_dfa
 }

@@ -1,13 +1,13 @@
-use crate::automaton::StateMachine;
+use crate::automaton::Automaton;
 use regex_syntax::ast::parse::Parser;
 use regex_syntax::ast::Ast;
 
-pub fn translate(s: &str) -> Result<StateMachine, Box<std::error::Error>> {
+pub fn translate(s: &str) -> Result<Automaton, Box<std::error::Error>> {
     let ast = Parser::new().parse(s)?;
     Ok(build_tree(&ast))
 }
 
-fn build_tree(ast_tree: &Ast) -> StateMachine {
+fn build_tree(ast_tree: &Ast) -> Automaton {
     match ast_tree {
         Ast::Concat(ast) => build_concatenation(ast),
         Ast::Repetition(ast) => build_repetition(ast),
@@ -18,8 +18,8 @@ fn build_tree(ast_tree: &Ast) -> StateMachine {
     }
 }
 
-fn build_concatenation(concat_ast: &regex_syntax::ast::Concat) -> StateMachine {
-    let mut concat_automaton = StateMachine::new();
+fn build_concatenation(concat_ast: &regex_syntax::ast::Concat) -> Automaton {
+    let mut concat_automaton = Automaton::new();
     let concat_start_state = concat_automaton.add_state();
     concat_automaton.set_start_state(concat_start_state);
 
@@ -49,10 +49,10 @@ fn build_concatenation(concat_ast: &regex_syntax::ast::Concat) -> StateMachine {
     concat_automaton
 }
 
-fn build_repetition(repetition_ast: &regex_syntax::ast::Repetition) -> StateMachine {
+fn build_repetition(repetition_ast: &regex_syntax::ast::Repetition) -> Automaton {
     use regex_syntax::ast::RepetitionKind;
 
-    let mut repetition_automaton = StateMachine::new();
+    let mut repetition_automaton = Automaton::new();
     let repetition_start_state = repetition_automaton.add_state();
     let repetition_end_state = repetition_automaton.add_state();
     let repetition_to_inner_offset = repetition_automaton.states;
@@ -104,8 +104,8 @@ fn build_repetition(repetition_ast: &regex_syntax::ast::Repetition) -> StateMach
     repetition_automaton
 }
 
-fn build_alternation(alternation_ast: &regex_syntax::ast::Alternation) -> StateMachine {
-    let mut alternation_automaton = StateMachine::new();
+fn build_alternation(alternation_ast: &regex_syntax::ast::Alternation) -> Automaton {
+    let mut alternation_automaton = Automaton::new();
     let alternation_automaton_start_state = alternation_automaton.add_state();
     let alternation_automaton_end_state = alternation_automaton.add_state();
 
@@ -144,8 +144,8 @@ fn build_alternation(alternation_ast: &regex_syntax::ast::Alternation) -> StateM
     alternation_automaton
 }
 
-fn build_literal(c: char) -> StateMachine {
-    let mut literal_automaton = StateMachine::new();
+fn build_literal(c: char) -> Automaton {
+    let mut literal_automaton = Automaton::new();
     let start_state = literal_automaton.add_state();
     let end_state = literal_automaton.add_state();
     literal_automaton.set_accepting(end_state, true);
