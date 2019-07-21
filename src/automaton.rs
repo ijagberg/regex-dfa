@@ -1,25 +1,35 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
 #[derive(Debug, Default)]
-pub struct Automaton {
+pub struct StateMachine {
     pub states: u32,
-    pub from_transitions: HashMap<u32, HashMap<u32, HashSet<Option<char>>>>,
-    pub to_transitions: HashMap<u32, HashMap<u32, HashSet<Option<char>>>>,
+    pub from_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
+    pub to_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
     pub start_state: Option<u32>,
-    pub accepting_states: HashSet<u32>,
-    alphabet: HashSet<char>,
+    pub accepting_states: BTreeSet<u32>,
+    alphabet: BTreeSet<char>,
 }
 
-impl Automaton {
-    pub fn new() -> Automaton {
-        Automaton {
+pub enum Automaton {
+    Nfa(StateMachine),
+    Dfa(StateMachine),
+    MinDfa(StateMachine),
+}
+
+impl StateMachine {
+    pub fn new() -> Self {
+        Self {
             states: 0,
             from_transitions: HashMap::new(),
             to_transitions: HashMap::new(),
             start_state: None,
-            accepting_states: HashSet::new(),
-            alphabet: HashSet::new(),
+            accepting_states: BTreeSet::new(),
+            alphabet: BTreeSet::new(),
         }
+    }
+
+    pub fn from_string(s: &str) -> Result<Self, Box<std::error::Error>> {
+        crate::translator::translate(s)
     }
 
     /// Traverses the dfa via the characters in `input` to determine if it matches the whole string
@@ -124,26 +134,25 @@ impl Automaton {
     }
 
     /// Returns a dfa simulating the same functionality of this automaton
-    pub fn as_dfa(&self) -> Automaton {
+    pub fn as_dfa(&self) -> StateMachine {
         match self.start_state {
             Some(start_state) => {
-                let mut minimized_dfa = Automaton::new();
+                let mut minimized_dfa = StateMachine::new();
                 let mut comp_to_dfa = HashMap::new();
 
-                let mut visited_comp = HashSet::new();
+                let mut visited_comp = BTreeSet::new();
                 let mut to_visit_comp = VecDeque::new();
 
                 let comp_start_state = self.epsilon_closure(start_state);
 
                 to_visit_comp.push_back(comp_start_state.clone());
                 while let Some(from_comp) = to_visit_comp.pop_front() {
-                    let from_comp_id = get_unique_id_for_set(&from_comp);
-                    visited_comp.insert(from_comp_id.clone());
-                    let from_dfa_id = match comp_to_dfa.get(&from_comp_id) {
+                    visited_comp.insert(from_comp.clone());
+                    let from_dfa_id = match comp_to_dfa.get(&from_comp) {
                         Some(dfa_id) => *dfa_id,
                         None => {
                             let dfa_id = minimized_dfa.add_state();
-                            comp_to_dfa.insert(from_comp_id, dfa_id);
+                            comp_to_dfa.insert(from_comp.clone(), dfa_id);
                             minimized_dfa.set_accepting(
                                 dfa_id,
                                 from_comp.iter().any(|s| self.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
@@ -154,8 +163,7 @@ impl Automaton {
                     for c in &self.alphabet {
                         let to_comp = self.atom_closure(&from_comp, *c);
                         if !to_comp.is_empty() {
-                            let to_comp_id = get_unique_id_for_set(&to_comp);
-                            if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp_id) {
+                            if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp) {
                                 // Composite state is already in the minimized dfa
                                 minimized_dfa.add_transition(from_dfa_id, *to_dfa_id, Some(*c));
                             } else {
@@ -165,16 +173,15 @@ impl Automaton {
                                     to_dfa_id,
                                     to_comp.iter().any(|s| self.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
                                 );
-                                to_visit_comp.push_back(to_comp);
-                                comp_to_dfa.insert(to_comp_id, to_dfa_id);
+                                to_visit_comp.push_back(to_comp.clone());
+                                comp_to_dfa.insert(to_comp, to_dfa_id);
                                 minimized_dfa.add_transition(from_dfa_id, to_dfa_id, Some(*c));
                             }
                         }
                     }
                 }
 
-                minimized_dfa
-                    .set_start_state(comp_to_dfa[&get_unique_id_for_set(&comp_start_state)]);
+                minimized_dfa.set_start_state(comp_to_dfa[&comp_start_state]);
 
                 minimized_dfa
             }
@@ -195,10 +202,10 @@ impl Automaton {
         None
     }
 
-    pub fn as_minimized_dfa(&self) -> Automaton {
+    pub fn as_minimized_dfa(&self) -> StateMachine {
         let equivalent_states = self.get_equivalent_states();
         let mut comp_state_to_dfa = HashMap::new();
-        let mut min_dfa = Automaton::new();
+        let mut min_dfa = StateMachine::new();
 
         // First add all states to minimized dfa
         for (s1, equivalent_to_s1) in &equivalent_states {
@@ -244,7 +251,7 @@ impl Automaton {
         min_dfa
     }
 
-    pub fn add_states_and_transitions(&mut self, other_dfa: Automaton) {
+    pub fn add_states_and_transitions(&mut self, other_dfa: StateMachine) {
         let states_offset = self.states;
 
         // Add states and transitions to concatenated dfa
@@ -293,10 +300,10 @@ impl Automaton {
         }
     }
 
-    pub fn intersection(&self, other: &Automaton) -> Automaton {
+    pub fn intersection(&self, other: &StateMachine) -> StateMachine {
         // For each pair of states,
-        let mut mul_dfa = Automaton::new();
-        let mul_alphabet: HashSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
+        let mut mul_dfa = StateMachine::new();
+        let mul_alphabet: BTreeSet<char> = self.alphabet.union(&other.alphabet).cloned().collect();
         let mut pair_to_dfa: HashMap<(u32, u32), u32> = HashMap::new();
         for self_from_state in 0..self.states {
             for other_from_state in 0..other.states {
@@ -352,13 +359,29 @@ impl Automaton {
 
     pub fn to_dot_format(&self) -> String {
         let lines = std::iter::once("digraph g {".into())
+            .chain((0..self.states).map(|state| {
+                format!(
+                    "{} [shape={} peripheries={}];",
+                    state,
+                    if Some(state) == self.start_state {
+                        "box"
+                    } else {
+                        "circle"
+                    },
+                    if self.accepting_states.contains(&state) {
+                        "2"
+                    } else {
+                        "1"
+                    }
+                )
+            }))
             .chain(
                 self.from_transitions
                     .iter()
                     .flat_map(|(from_state, to_states)| {
                         to_states.iter().map(move |(to_state, symbols)| {
                             format!(
-                                "{} -> {} [label={}];",
+                                "{} -> {} [label=\"{}\"];",
                                 from_state,
                                 to_state,
                                 symbols
@@ -371,15 +394,16 @@ impl Automaton {
                         })
                     }),
             )
-            .chain(std::iter::once("}".into())).collect::<Vec<String>>();
+            .chain(std::iter::once("}".into()))
+            .collect::<Vec<String>>();
         lines.join("\n")
     }
 
-    fn get_equivalent_states(&self) -> HashMap<u32, HashSet<u32>> {
+    fn get_equivalent_states(&self) -> HashMap<u32, BTreeSet<u32>> {
         let marked_states = self.get_marked_states_table();
         let mut equivalent_composite_states = HashMap::new();
         for s1 in 0..self.states {
-            let mut equivalent_to_s1 = HashSet::new();
+            let mut equivalent_to_s1 = BTreeSet::new();
             for s2 in 0..self.states {
                 if !marked_states[s1 as usize][s2 as usize] {
                     equivalent_to_s1.insert(s2);
@@ -465,8 +489,8 @@ impl Automaton {
     /// # Arguments
     ///
     /// * `start_state` - The state from which traversal begins
-    fn epsilon_closure(&self, start_state: u32) -> HashSet<u32> {
-        let mut reachable_states = HashSet::new();
+    fn epsilon_closure(&self, start_state: u32) -> BTreeSet<u32> {
+        let mut reachable_states = BTreeSet::new();
         let mut unvisited_states = VecDeque::new();
         unvisited_states.push_back(start_state);
         while let Some(unvisited_state) = unvisited_states.pop_front() {
@@ -490,8 +514,8 @@ impl Automaton {
     ///
     /// * `from_state_set` - The composite state from which traversal begins
     /// * `atom` - The atom via which we are allowed to traverse
-    fn atom_closure(&self, from_state_set: &HashSet<u32>, atom: char) -> HashSet<u32> {
-        let mut atom_closure = HashSet::new();
+    fn atom_closure(&self, from_state_set: &BTreeSet<u32>, atom: char) -> BTreeSet<u32> {
+        let mut atom_closure = BTreeSet::new();
         for from_state in from_state_set {
             if let Some(from_transitions) = self.from_transitions.get(&from_state) {
                 for (to_state, atoms_set) in from_transitions {
@@ -517,7 +541,7 @@ impl Automaton {
                     atoms.insert(atom);
                 } else {
                     // There is no transition from from_state to to_state
-                    let mut atoms_set = HashSet::new();
+                    let mut atoms_set = BTreeSet::new();
                     atoms_set.insert(atom);
                     to_states.insert(to_state, atoms_set); // Create empty atoms set
                 }
@@ -525,7 +549,7 @@ impl Automaton {
             None => {
                 // There is no transition from from_state to any other state
                 let mut to_states = HashMap::new();
-                let mut atoms_set = HashSet::new(); // atoms_set for transitions from from_state to to_state
+                let mut atoms_set = BTreeSet::new(); // atoms_set for transitions from from_state to to_state
                 atoms_set.insert(atom);
                 to_states.insert(to_state, atoms_set);
                 self.from_transitions.insert(from_state, to_states);
@@ -542,7 +566,7 @@ impl Automaton {
                     atoms.insert(atom);
                 } else {
                     // There is no transition from from_state to to_state
-                    let mut atoms_set = HashSet::new();
+                    let mut atoms_set = BTreeSet::new();
                     atoms_set.insert(atom);
                     from_states.insert(from_state, atoms_set); // Create empty atoms set
                 }
@@ -550,7 +574,7 @@ impl Automaton {
             None => {
                 // There is no transition from any other state to to_state
                 let mut from_states = HashMap::new();
-                let mut atoms_set = HashSet::new(); // atoms_set for transitions from from_state to to_state
+                let mut atoms_set = BTreeSet::new(); // atoms_set for transitions from from_state to to_state
                 atoms_set.insert(atom);
                 from_states.insert(from_state, atoms_set);
                 self.to_transitions.insert(to_state, from_states);
@@ -561,11 +585,4 @@ impl Automaton {
     fn add_states(&mut self, states: u32) {
         self.states += states;
     }
-}
-
-// TODO: figure out a better way to use a set as a key
-fn get_unique_id_for_set(set: &HashSet<u32>) -> String {
-    let mut set_as_vector: Vec<u32> = set.iter().cloned().collect();
-    set_as_vector.sort();
-    format!("{:?}", set_as_vector)
 }
