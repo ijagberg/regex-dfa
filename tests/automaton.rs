@@ -1,9 +1,8 @@
-use regex_dfa::automaton;
-use regex_dfa::automaton::{Automaton, StateMachine};
+use regex_dfa::automaton::Automaton;
 
 #[test]
 fn test_concatenation_1() {
-    let automaton = Automaton::from_string("abc").unwrap().as_min_dfa();
+    let automaton = Automaton::from_string("abc").unwrap().into_min_dfa();
     assert!(automaton.match_whole("abc"));
     assert!(!automaton.match_whole("abcc"));
     assert!(!automaton.match_whole("ab"));
@@ -11,7 +10,7 @@ fn test_concatenation_1() {
 
 #[test]
 fn test_concatenation_2() {
-    let automaton = Automaton::from_string("aaabc").unwrap().as_min_dfa();
+    let automaton = Automaton::from_string("aaabc").unwrap().into_min_dfa();
     assert!(automaton.match_whole("aaabc"));
     assert!(!automaton.match_whole("abcc"));
     assert!(!automaton.match_whole("ab"));
@@ -19,7 +18,7 @@ fn test_concatenation_2() {
 
 #[test]
 fn test_alternation_1() {
-    let automaton = Automaton::from_string("a|b").unwrap().as_min_dfa();
+    let automaton = Automaton::from_string("a|b").unwrap().into_min_dfa();
     assert!(automaton.match_whole("a"));
     assert!(automaton.match_whole("b"));
     assert!(!automaton.match_whole("ab"));
@@ -27,10 +26,38 @@ fn test_alternation_1() {
 
 #[test]
 fn test_grouping_1() {
-    let automaton = Automaton::from_string("a(bcd|efg)").unwrap().as_min_dfa();
+    let automaton = Automaton::from_string("a(bcd|efg)").unwrap().into_min_dfa();
     assert!(automaton.match_whole("abcd"));
     assert!(automaton.match_whole("aefg"));
     assert!(!automaton.match_whole("abcdefg"));
     assert!(!automaton.match_whole("a"));
     assert!(!automaton.match_whole("abcde"));
+}
+
+#[test]
+fn test_star_1() {
+    let automaton = Automaton::from_string("a*").unwrap().into_min_dfa();
+    assert!(automaton.match_whole(""));
+    assert!(automaton.match_whole("a"));
+    assert!(automaton.match_whole("aa"));
+    assert!(automaton.match_whole("aaa"));
+    assert!(!automaton.match_whole("aaab"));
+}
+
+#[test]
+fn test_plus_1() {
+    let automaton = Automaton::from_string("a+").unwrap().into_min_dfa();
+    assert!(!automaton.match_whole(""));
+    assert!(automaton.match_whole("a"));
+    assert!(automaton.match_whole("aa"));
+    assert!(automaton.match_whole("aaa"));
+    assert!(!automaton.match_whole("aaab"));
+}
+
+#[test]
+fn test_question_1() {
+    let automaton = Automaton::from_string("a?").unwrap().into_min_dfa();
+    assert!(automaton.match_whole(""));
+    assert!(automaton.match_whole("a"));
+    assert!(!automaton.match_whole("aa"));
 }
