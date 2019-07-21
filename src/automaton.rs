@@ -16,6 +16,46 @@ pub enum Automaton {
     MinDfa(StateMachine),
 }
 
+impl Automaton {
+    pub fn from_string(s: &str) -> Result<Automaton, Box<std::error::Error>> {
+        let state_machine = crate::translator::translate(s)?;
+        Ok(Automaton::Nfa(state_machine))
+    }
+
+    pub fn as_dfa(self) -> Automaton {
+        match self {
+            Automaton::Nfa(state_machine) => {
+                let dfa = nfa_to_dfa(&state_machine);
+                Automaton::Dfa(dfa)
+            }
+            automaton => automaton,
+        }
+    }
+
+    pub fn as_min_dfa(self) -> Automaton {
+        match self {
+            Automaton::Nfa(state_machine) => {
+                let dfa = nfa_to_dfa(&state_machine);
+                let min_dfa = dfa_to_minimized_dfa(&dfa);
+                Automaton::MinDfa(min_dfa)
+            }
+            Automaton::Dfa(state_machine) => {
+                let min_dfa = dfa_to_minimized_dfa(&state_machine);
+                Automaton::MinDfa(min_dfa)
+            }
+            automaton => automaton,
+        }
+    }
+
+    pub fn to_dot_format(&self) -> String {
+        match self {
+            Automaton::Nfa(state_machine) => state_machine.to_dot_format(),
+            Automaton::Dfa(state_machine) => state_machine.to_dot_format(),
+            Automaton::MinDfa(state_machine) => state_machine.to_dot_format(),
+        }
+    }
+}
+
 impl StateMachine {
     pub fn new() -> Self {
         Self {
@@ -26,10 +66,6 @@ impl StateMachine {
             accepting_states: BTreeSet::new(),
             alphabet: BTreeSet::new(),
         }
-    }
-
-    pub fn from_string(s: &str) -> Result<Self, Box<std::error::Error>> {
-        crate::translator::translate(s)
     }
 
     /// Traverses the dfa via the characters in `input` to determine if it matches the whole string
@@ -133,64 +169,6 @@ impl StateMachine {
         longest_substring
     }
 
-    /// Returns a dfa simulating the same functionality of this automaton
-    pub fn as_dfa(&self) -> StateMachine {
-        match self.start_state {
-            Some(start_state) => {
-                let mut minimized_dfa = StateMachine::new();
-                let mut comp_to_dfa = HashMap::new();
-
-                let mut visited_comp = BTreeSet::new();
-                let mut to_visit_comp = VecDeque::new();
-
-                let comp_start_state = self.epsilon_closure(start_state);
-
-                to_visit_comp.push_back(comp_start_state.clone());
-                while let Some(from_comp) = to_visit_comp.pop_front() {
-                    visited_comp.insert(from_comp.clone());
-                    let from_dfa_id = match comp_to_dfa.get(&from_comp) {
-                        Some(dfa_id) => *dfa_id,
-                        None => {
-                            let dfa_id = minimized_dfa.add_state();
-                            comp_to_dfa.insert(from_comp.clone(), dfa_id);
-                            minimized_dfa.set_accepting(
-                                dfa_id,
-                                from_comp.iter().any(|s| self.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
-                            );
-                            dfa_id
-                        }
-                    };
-                    for c in &self.alphabet {
-                        let to_comp = self.atom_closure(&from_comp, *c);
-                        if !to_comp.is_empty() {
-                            if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp) {
-                                // Composite state is already in the minimized dfa
-                                minimized_dfa.add_transition(from_dfa_id, *to_dfa_id, Some(*c));
-                            } else {
-                                // Composite state is not in the minimized dfa
-                                let to_dfa_id = minimized_dfa.add_state();
-                                minimized_dfa.set_accepting(
-                                    to_dfa_id,
-                                    to_comp.iter().any(|s| self.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
-                                );
-                                to_visit_comp.push_back(to_comp.clone());
-                                comp_to_dfa.insert(to_comp, to_dfa_id);
-                                minimized_dfa.add_transition(from_dfa_id, to_dfa_id, Some(*c));
-                            }
-                        }
-                    }
-                }
-
-                minimized_dfa.set_start_state(comp_to_dfa[&comp_start_state]);
-
-                minimized_dfa
-            }
-            None => {
-                panic!("No starting state");
-            }
-        }
-    }
-
     pub fn traverse_from(&self, from_state: u32, atom: char) -> Option<u32> {
         if let Some(transitions) = self.from_transitions.get(&from_state) {
             for (to_state, atoms_set) in transitions {
@@ -200,55 +178,6 @@ impl StateMachine {
             }
         }
         None
-    }
-
-    pub fn as_minimized_dfa(&self) -> StateMachine {
-        let equivalent_states = self.get_equivalent_states();
-        let mut comp_state_to_dfa = HashMap::new();
-        let mut min_dfa = StateMachine::new();
-
-        // First add all states to minimized dfa
-        for (s1, equivalent_to_s1) in &equivalent_states {
-            if let Some(dfa_state_id) = comp_state_to_dfa.get(s1) {
-                // s1 has already been added to min_dfa
-                comp_state_to_dfa.insert(s1, *dfa_state_id);
-            } else {
-                let dfa_state_id = min_dfa.add_state();
-                for equivalent_state in equivalent_to_s1 {
-                    comp_state_to_dfa.insert(equivalent_state, dfa_state_id);
-                }
-
-                if let Some(comp_start_state) = self.start_state {
-                    if equivalent_to_s1.contains(&comp_start_state) {
-                        min_dfa.set_start_state(dfa_state_id);
-                    }
-                }
-
-                // Set accepting if all states in comp is accepting
-                min_dfa.set_accepting(
-                    dfa_state_id,
-                    equivalent_to_s1
-                        .iter()
-                        .all(|&state| self.accepting_states.contains(&state)),
-                );
-            }
-        }
-
-        // Then add all transitions
-        for from_state in equivalent_states.keys() {
-            for c in &self.alphabet {
-                if let Some(to_state) = self.traverse_from(*from_state, *c) {
-                    if let (Some(dfa_from_state), Some(dfa_to_state)) = (
-                        comp_state_to_dfa.get(&from_state),
-                        comp_state_to_dfa.get(&to_state),
-                    ) {
-                        min_dfa.add_transition(*dfa_from_state, *dfa_to_state, Some(*c));
-                    }
-                }
-            }
-        }
-
-        min_dfa
     }
 
     pub fn add_states_and_transitions(&mut self, other_dfa: StateMachine) {
@@ -354,7 +283,7 @@ impl StateMachine {
                 }
             }
         }
-        mul_dfa.as_minimized_dfa()
+        mul_dfa
     }
 
     pub fn to_dot_format(&self) -> String {
@@ -585,4 +514,114 @@ impl StateMachine {
     fn add_states(&mut self, states: u32) {
         self.states += states;
     }
+}
+
+fn nfa_to_dfa(state_machine: &StateMachine) -> StateMachine {
+    match state_machine.start_state {
+        Some(start_state) => {
+            let mut minimized_dfa = StateMachine::new();
+            let mut comp_to_dfa = HashMap::new();
+
+            let mut visited_comp = BTreeSet::new();
+            let mut to_visit_comp = VecDeque::new();
+
+            let comp_start_state = state_machine.epsilon_closure(start_state);
+
+            to_visit_comp.push_back(comp_start_state.clone());
+            while let Some(from_comp) = to_visit_comp.pop_front() {
+                visited_comp.insert(from_comp.clone());
+                let from_dfa_id = match comp_to_dfa.get(&from_comp) {
+                    Some(dfa_id) => *dfa_id,
+                    None => {
+                        let dfa_id = minimized_dfa.add_state();
+                        comp_to_dfa.insert(from_comp.clone(), dfa_id);
+                        minimized_dfa.set_accepting(
+                            dfa_id,
+                            from_comp
+                                .iter()
+                                .any(|s| state_machine.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
+                        );
+                        dfa_id
+                    }
+                };
+                for c in &state_machine.alphabet {
+                    let to_comp = state_machine.atom_closure(&from_comp, *c);
+                    if !to_comp.is_empty() {
+                        if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp) {
+                            // Composite state is already in the minimized dfa
+                            minimized_dfa.add_transition(from_dfa_id, *to_dfa_id, Some(*c));
+                        } else {
+                            // Composite state is not in the minimized dfa
+                            let to_dfa_id = minimized_dfa.add_state();
+                            minimized_dfa.set_accepting(
+                                to_dfa_id,
+                                to_comp
+                                    .iter()
+                                    .any(|s| state_machine.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
+                            );
+                            to_visit_comp.push_back(to_comp.clone());
+                            comp_to_dfa.insert(to_comp, to_dfa_id);
+                            minimized_dfa.add_transition(from_dfa_id, to_dfa_id, Some(*c));
+                        }
+                    }
+                }
+            }
+
+            minimized_dfa.set_start_state(comp_to_dfa[&comp_start_state]);
+
+            minimized_dfa
+        }
+        None => {
+            panic!("No starting state");
+        }
+    }
+}
+
+fn dfa_to_minimized_dfa(state_machine: &StateMachine) -> StateMachine {
+    let equivalent_states = state_machine.get_equivalent_states();
+    let mut comp_state_to_dfa = HashMap::new();
+    let mut min_dfa = StateMachine::new();
+
+    // First add all states to minimized dfa
+    for (s1, equivalent_to_s1) in &equivalent_states {
+        if let Some(dfa_state_id) = comp_state_to_dfa.get(s1) {
+            // s1 has already been added to min_dfa
+            comp_state_to_dfa.insert(s1, *dfa_state_id);
+        } else {
+            let dfa_state_id = min_dfa.add_state();
+            for equivalent_state in equivalent_to_s1 {
+                comp_state_to_dfa.insert(equivalent_state, dfa_state_id);
+            }
+
+            if let Some(comp_start_state) = state_machine.start_state {
+                if equivalent_to_s1.contains(&comp_start_state) {
+                    min_dfa.set_start_state(dfa_state_id);
+                }
+            }
+
+            // Set accepting if all states in comp is accepting
+            min_dfa.set_accepting(
+                dfa_state_id,
+                equivalent_to_s1
+                    .iter()
+                    .all(|&state| state_machine.accepting_states.contains(&state)),
+            );
+        }
+    }
+
+    // Then add all transitions
+    for from_state in equivalent_states.keys() {
+        for c in &state_machine.alphabet {
+            if let Some(to_state) = state_machine.traverse_from(*from_state, *c) {
+                if let (Some(dfa_from_state), Some(dfa_to_state)) = (
+                    comp_state_to_dfa.get(&from_state),
+                    comp_state_to_dfa.get(&to_state),
+                ) {
+                    min_dfa.add_transition(*dfa_from_state, *dfa_to_state, Some(*c));
+                }
+            }
+        }
+    }
+
+    min_dfa
 }
