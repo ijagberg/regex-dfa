@@ -1,6 +1,9 @@
 use crate::automaton::Automaton;
 use regex_syntax::ast::parse::Parser;
-use regex_syntax::ast::Ast;
+use regex_syntax::ast::{
+    Alternation, Ast, Class, ClassSet, ClassSetItem, ClassSetRange, Concat, Repetition,
+};
+use std::collections::HashSet;
 
 pub fn translate(s: &str) -> Result<Automaton, Box<std::error::Error>> {
     let ast = Parser::new().parse(s)?;
@@ -12,14 +15,35 @@ fn build_tree(ast_tree: &Ast) -> Automaton {
     match ast_tree {
         Ast::Concat(ast) => build_concatenation(ast),
         Ast::Repetition(ast) => build_repetition(ast),
-        Ast::Literal(ast) => build_literal(ast.c),
+        Ast::Literal(ast) => build_literal(std::iter::once(ast.c).collect()),
         Ast::Alternation(ast) => build_alternation(ast),
         Ast::Group(ast) => build_tree(&ast.ast),
+        Ast::Class(ast) => build_class(ast),
         unsupported => panic!("No support for {} (yet)", unsupported),
     }
 }
 
-fn build_concatenation(concat_ast: &regex_syntax::ast::Concat) -> Automaton {
+fn build_class(class_ast: &Class) -> Automaton {
+    match class_ast {
+        Class::Bracketed(class_bracketed) => match &class_bracketed.kind {
+            ClassSet::Item(item) => match item {
+                ClassSetItem::Range(class_set_range) => build_class_set_range(&class_set_range),
+                unsupported => panic!("No support for {:?} (yet)", unsupported),
+            },
+            unsupported => panic!("No support for {:?} (yet)", unsupported),
+        },
+        unsupported => panic!("No support for {:?} (yet)", unsupported),
+    }
+}
+
+fn build_class_set_range(class_set_range: &ClassSetRange) -> Automaton {
+    let start_atom = class_set_range.start.c as u8;
+    let end_atom = class_set_range.end.c as u8;
+
+    build_literal(((start_atom..=end_atom).map(char::from)).collect())
+}
+
+fn build_concatenation(concat_ast: &Concat) -> Automaton {
     let mut concat_automaton = Automaton::new();
     let concat_start_state = concat_automaton.add_state();
     concat_automaton.set_start_state(concat_start_state);
@@ -50,7 +74,7 @@ fn build_concatenation(concat_ast: &regex_syntax::ast::Concat) -> Automaton {
     concat_automaton
 }
 
-fn build_repetition(repetition_ast: &regex_syntax::ast::Repetition) -> Automaton {
+fn build_repetition(repetition_ast: &Repetition) -> Automaton {
     use regex_syntax::ast::RepetitionKind;
 
     let mut repetition_automaton = Automaton::new();
@@ -105,7 +129,7 @@ fn build_repetition(repetition_ast: &regex_syntax::ast::Repetition) -> Automaton
     repetition_automaton
 }
 
-fn build_alternation(alternation_ast: &regex_syntax::ast::Alternation) -> Automaton {
+fn build_alternation(alternation_ast: &Alternation) -> Automaton {
     let mut alternation_automaton = Automaton::new();
     let alternation_automaton_start_state = alternation_automaton.add_state();
     let alternation_automaton_end_state = alternation_automaton.add_state();
@@ -145,12 +169,14 @@ fn build_alternation(alternation_ast: &regex_syntax::ast::Alternation) -> Automa
     alternation_automaton
 }
 
-fn build_literal(c: char) -> Automaton {
+fn build_literal(atoms: HashSet<char>) -> Automaton {
     let mut literal_automaton = Automaton::new();
     let start_state = literal_automaton.add_state();
     let end_state = literal_automaton.add_state();
     literal_automaton.set_accepting(end_state, true);
     literal_automaton.set_start_state(start_state);
-    literal_automaton.add_transition(start_state, end_state, Some(c));
+    for atom in atoms {
+        literal_automaton.add_transition(start_state, end_state, Some(atom));
+    }
     literal_automaton
 }
