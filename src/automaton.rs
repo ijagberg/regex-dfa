@@ -101,29 +101,32 @@ impl Automaton {
         Some(input)
     }
 
-    pub fn match_all_prefixes<'a>(&self, input: &'a str) -> Vec<&'a str> {
-        let mut matched_prefixes: Vec<&str> = Vec::new();
+    fn match_all_prefixes(&self, input: &str) -> Vec<(usize, usize)> {
+        let mut matched_prefixes = Vec::new();
 
         let mut current_state = self.start_state.expect("No start state set for dfa");
+        if self.accepting_states.contains(&current_state) {
+            matched_prefixes.push((0, 0));
+        }
         for (index, current_atom) in input.chars().enumerate() {
-            if self.accepting_states.contains(&current_state) {
-                matched_prefixes.push(&input[0..index]);
-            }
             match self.traverse_from(current_state, current_atom) {
                 Some(next_state) => current_state = next_state,
                 None => return matched_prefixes,
+            }
+            if self.accepting_states.contains(&current_state) {
+                matched_prefixes.push((0, index + 1));
             }
         }
         matched_prefixes
     }
 
-    pub fn match_substrings<'a>(&self, input: &'a str) -> Vec<&'a str> {
-        let mut matched_substrings: Vec<&str> = Vec::new();
+    pub fn match_substrings(&self, input: &str) -> Vec<(usize, usize)> {
+        let mut matched_substrings = Vec::new();
 
         for (index, _) in input.chars().enumerate() {
             let matched_prefixes = self.match_all_prefixes(&input[index..]);
-            for matched_prefix in matched_prefixes {
-                matched_substrings.push(matched_prefix);
+            for (start, end) in matched_prefixes {
+                matched_substrings.push((start + index, end + index));
             }
         }
         matched_substrings

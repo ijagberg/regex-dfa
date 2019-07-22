@@ -11,7 +11,6 @@ pub fn translate(s: &str) -> Result<Automaton, Box<std::error::Error>> {
 }
 
 fn build_tree(ast_tree: &Ast) -> Automaton {
-    dbg!(ast_tree);
     match ast_tree {
         Ast::Concat(ast) => build_concatenation(ast),
         Ast::Repetition(ast) => build_repetition(ast),

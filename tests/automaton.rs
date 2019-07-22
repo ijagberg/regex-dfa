@@ -1,7 +1,7 @@
 use regex_dfa::automaton::Automaton;
 
 #[test]
-fn test_concatenation_1() {
+fn test_concatenation_whole_1() {
     let automaton = Automaton::from_string("abc").unwrap().into_min_dfa();
     assert!(automaton.match_whole("abc"));
     assert!(!automaton.match_whole("abcc"));
@@ -9,11 +9,22 @@ fn test_concatenation_1() {
 }
 
 #[test]
-fn test_concatenation_2() {
+fn test_concatenation_whole_2() {
     let automaton = Automaton::from_string("aaabc").unwrap().into_min_dfa();
     assert!(automaton.match_whole("aaabc"));
     assert!(!automaton.match_whole("abcc"));
     assert!(!automaton.match_whole("ab"));
+}
+
+#[test]
+fn test_concatenation_substrings_1() {
+    let automaton = Automaton::from_string("a+").unwrap().into_min_dfa();
+    println!("{}", automaton.to_dot_format());
+    let input_str = "aaa";
+    assert_eq!(
+        automaton.match_substrings(input_str),
+        vec![(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+    );
 }
 
 #[test]
