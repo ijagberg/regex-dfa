@@ -28,6 +28,17 @@ fn test_concatenation_substrings_1() {
 }
 
 #[test]
+fn test_concatenation_substrings_2() {
+    let automaton = Automaton::from_string("a*").unwrap().into_min_dfa();
+    println!("{}", automaton.to_dot_format());
+    let input_str = "aaa";
+    assert_eq!(
+        automaton.match_substrings(input_str),
+        vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 1), (1, 2), (1, 3), (2, 2), (2, 3)]
+    );
+}
+
+#[test]
 fn test_alternation_1() {
     let automaton = Automaton::from_string("a|b").unwrap().into_min_dfa();
     assert!(automaton.match_whole("a"));
