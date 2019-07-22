@@ -61,3 +61,13 @@ fn test_question_1() {
     assert!(automaton.match_whole("a"));
     assert!(!automaton.match_whole("aa"));
 }
+
+#[test]
+fn test_literal_range_1() {
+    let automaton = Automaton::from_string("[a-z]+").unwrap().into_min_dfa();
+    for atom in (b'a'..=b'z').map(char::from) {
+        assert!(automaton.match_whole(&atom.to_string()));
+    }
+    assert!(automaton.match_whole("abcdefghijk"));
+    assert!(!automaton.match_whole("1"));
+}
