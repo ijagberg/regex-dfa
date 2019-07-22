@@ -23,7 +23,7 @@ fn test_concatenation_substrings_1() {
     let input_str = "aaa";
     assert_eq!(
         automaton.match_substrings(input_str),
-        vec![(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+        vec![(0..1), (0..2), (0..3), (1..2), (1..3), (2..3)]
     );
 }
 
@@ -34,7 +34,17 @@ fn test_concatenation_substrings_2() {
     let input_str = "aaa";
     assert_eq!(
         automaton.match_substrings(input_str),
-        vec![(0, 0), (0, 1), (0, 2), (0, 3), (1, 1), (1, 2), (1, 3), (2, 2), (2, 3)]
+        vec![
+            (0..0),
+            (0..1),
+            (0..2),
+            (0..3),
+            (1..1),
+            (1..2),
+            (1..3),
+            (2..2),
+            (2..3)
+        ]
     );
 }
 

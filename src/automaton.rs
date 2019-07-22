@@ -1,5 +1,6 @@
 use crate::automaton::AutomatonKind::Nfa;
 use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::ops::Range;
 
 #[derive(Debug)]
 pub struct Automaton {
@@ -101,12 +102,12 @@ impl Automaton {
         Some(input)
     }
 
-    fn match_all_prefixes(&self, input: &str) -> Vec<(usize, usize)> {
+    fn match_all_prefixes(&self, input: &str) -> Vec<Range<usize>> {
         let mut matched_prefixes = Vec::new();
 
         let mut current_state = self.start_state.expect("No start state set for dfa");
         if self.accepting_states.contains(&current_state) {
-            matched_prefixes.push((0, 0));
+            matched_prefixes.push(Range { start: 0, end: 0 });
         }
         for (index, current_atom) in input.chars().enumerate() {
             match self.traverse_from(current_state, current_atom) {
@@ -114,19 +115,25 @@ impl Automaton {
                 None => return matched_prefixes,
             }
             if self.accepting_states.contains(&current_state) {
-                matched_prefixes.push((0, index + 1));
+                matched_prefixes.push(Range {
+                    start: 0,
+                    end: index + 1,
+                });
             }
         }
         matched_prefixes
     }
 
-    pub fn match_substrings(&self, input: &str) -> Vec<(usize, usize)> {
+    pub fn match_substrings(&self, input: &str) -> Vec<Range<usize>> {
         let mut matched_substrings = Vec::new();
 
         for (index, _) in input.chars().enumerate() {
             let matched_prefixes = self.match_all_prefixes(&input[index..]);
-            for (start, end) in matched_prefixes {
-                matched_substrings.push((start + index, end + index));
+            for range in matched_prefixes {
+                matched_substrings.push(Range {
+                    start: range.start + index,
+                    end: range.end + index,
+                });
             }
         }
         matched_substrings
