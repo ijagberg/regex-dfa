@@ -25,6 +25,10 @@ fn test_concatenation_substrings_1() {
         automaton.match_substrings(input_str),
         vec![(0..1), (0..2), (0..3), (1..2), (1..3), (2..3)]
     );
+    assert_eq!(
+        automaton.match_longest_substring(input_str),
+        Some(0..input_str.len())
+    );
 }
 
 #[test]

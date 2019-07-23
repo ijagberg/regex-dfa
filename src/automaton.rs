@@ -131,7 +131,7 @@ impl Automaton {
         let mut current_state = self.start_state.expect("No start state set for dfa");
         for (index, current_atom) in input.chars().enumerate() {
             if self.accepting_states.contains(&current_state) {
-                longest_match = Some(0..index);
+                longest_match = Some(0..index + 1);
             }
             match self.traverse_from(current_state, current_atom) {
                 Some(next_state) => current_state = next_state,
@@ -154,7 +154,7 @@ impl Automaton {
         longest_substring
     }
 
-    pub fn traverse_from(&self, from_state: u32, atom: char) -> Option<u32> {
+    fn traverse_from(&self, from_state: u32, atom: char) -> Option<u32> {
         if let Some(transitions) = self.from_transitions.get(&from_state) {
             for (to_state, atoms_set) in transitions {
                 if atoms_set.contains(&Some(atom)) {
