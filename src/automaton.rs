@@ -39,10 +39,7 @@ impl Automaton {
 
     pub fn into_dfa(self) -> Automaton {
         match self.kind {
-            AutomatonKind::Nfa => {
-                let dfa = nfa_to_dfa(&self);
-                dfa
-            }
+            AutomatonKind::Nfa => nfa_to_dfa(&self),
             _ => self,
         }
     }
@@ -51,13 +48,9 @@ impl Automaton {
         match self.kind {
             AutomatonKind::Nfa => {
                 let dfa = nfa_to_dfa(&self);
-                let min_dfa = dfa_to_minimized_dfa(&dfa);
-                min_dfa
+                dfa_to_minimized_dfa(&dfa)
             }
-            AutomatonKind::Dfa => {
-                let min_dfa = dfa_to_minimized_dfa(&self);
-                min_dfa
-            }
+            AutomatonKind::Dfa => dfa_to_minimized_dfa(&self),
             _ => self,
         }
     }
@@ -114,10 +107,7 @@ impl Automaton {
                 None => return matched_prefixes,
             }
             if self.accepting_states.contains(&current_state) {
-                matched_prefixes.push(Range {
-                    start: 0,
-                    end: index + 1,
-                });
+                matched_prefixes.push(0..index + 1);
             }
         }
         matched_prefixes
@@ -522,6 +512,12 @@ impl Automaton {
 
     fn add_states(&mut self, states: u32) {
         self.states += states;
+    }
+}
+
+impl Default for Automaton {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
