@@ -1,4 +1,3 @@
-use crate::automaton::AutomatonKind::Nfa;
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::ops::Range;
 
@@ -596,7 +595,8 @@ fn dfa_to_minimized_dfa(automaton: &Automaton) -> Automaton {
     for (s1, equivalent_to_s1) in &equivalent_states {
         if let Some(dfa_state_id) = comp_state_to_dfa.get(s1) {
             // s1 has already been added to min_dfa
-            comp_state_to_dfa.insert(s1, *dfa_state_id);
+            let dfa_state_id = *dfa_state_id;
+            comp_state_to_dfa.insert(s1, dfa_state_id);
         } else {
             let dfa_state_id = min_dfa.add_state();
             for equivalent_state in equivalent_to_s1 {
