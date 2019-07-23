@@ -119,22 +119,19 @@ impl Automaton {
         for (index, _) in input.chars().enumerate() {
             let matched_prefixes = self.match_all_prefixes(&input[index..]);
             for range in matched_prefixes {
-                matched_substrings.push(Range {
-                    start: range.start + index,
-                    end: range.end + index,
-                });
+                matched_substrings.push(range.start + index..range.end + index);
             }
         }
         matched_substrings
     }
 
-    pub fn match_longest_prefix<'a>(&self, input: &'a str) -> Option<&'a str> {
-        let mut longest_match: Option<&'a str> = None;
+    pub fn match_longest_prefix(&self, input: &str) -> Option<Range<usize>> {
+        let mut longest_match = None;
 
         let mut current_state = self.start_state.expect("No start state set for dfa");
         for (index, current_atom) in input.chars().enumerate() {
             if self.accepting_states.contains(&current_state) {
-                longest_match = Some(&input[0..index]);
+                longest_match = Some(0..index);
             }
             match self.traverse_from(current_state, current_atom) {
                 Some(next_state) => current_state = next_state,
@@ -144,18 +141,13 @@ impl Automaton {
         longest_match
     }
 
-    pub fn match_longest_substring<'a>(&self, input: &'a str) -> Option<&'a str> {
-        let mut longest_substring: Option<&'a str> = None;
+    pub fn match_longest_substring(&self, input: &str) -> Option<Range<usize>> {
+        let mut longest_substring = None;
 
         for (index, _) in input.chars().enumerate() {
             if let Some(prefix) = self.match_longest_prefix(&input[index..]) {
-                match longest_substring {
-                    Some(substring) => {
-                        if prefix.len() > substring.len() {
-                            longest_substring = Some(prefix)
-                        }
-                    }
-                    None => longest_substring = Some(prefix),
+                if prefix.len() > longest_substring.as_ref().unwrap_or(&(0..0)).len() {
+                    longest_substring = Some(prefix.start + index..prefix.end + index)
                 }
             }
         }
