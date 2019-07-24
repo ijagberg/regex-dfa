@@ -107,3 +107,23 @@ fn test_literal_range_1() {
     assert!(automaton.match_whole("abcdefghijk"));
     assert!(!automaton.match_whole("1"));
 }
+
+#[test]
+fn test_intersection_1() {
+    println!("test_intersection_1:");
+    let automaton1 = Automaton::from_string("aaab*").unwrap().into_min_dfa();
+    assert!(automaton1.match_whole("aaa"));
+    assert!(automaton1.match_whole("aaab"));
+    assert!(!automaton1.match_whole("aaac"));
+    let automaton2 = Automaton::from_string("a+c*").unwrap().into_min_dfa();
+    assert!(automaton2.match_whole("aaa"));
+    assert!(!automaton2.match_whole("aaab"));
+    assert!(automaton2.match_whole("aaac"));
+    let intersection = automaton1.intersection(&automaton2).into_min_dfa();
+    assert!(intersection.match_whole("aaa"));
+    assert!(!intersection.match_whole("aaab"));
+    assert!(!intersection.match_whole("aaac"));
+    println!("{}", automaton1.to_dot_format());
+    println!("{}", automaton2.to_dot_format());
+    println!("{}", intersection.to_dot_format());
+}
