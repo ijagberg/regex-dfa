@@ -6,7 +6,7 @@ pub struct Automaton {
     pub states: u32,
     pub from_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
     pub to_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
-    pub start_state: Option<u32>,
+    pub start_state: u32,
     pub accepting_states: BTreeSet<u32>,
     alphabet: BTreeSet<char>,
     kind: AutomatonKind,
@@ -25,7 +25,7 @@ impl Automaton {
             states: 0,
             from_transitions: HashMap::new(),
             to_transitions: HashMap::new(),
-            start_state: None,
+            start_state: 0, // the dead state
             accepting_states: BTreeSet::new(),
             alphabet: BTreeSet::new(),
             kind: AutomatonKind::Nfa,
@@ -65,7 +65,7 @@ impl Automaton {
     ///
     /// `false` if the dfa is in a non-accepting state after traversing through all of `input`, or if there is some point where there is no transition for the current atom being processed
     pub fn match_whole(&self, input: &str) -> bool {
-        let mut current_state = self.start_state.expect("No start state set for dfa");
+        let mut current_state = self.start_state;
         if input.is_empty() {
             return self.accepting_states.contains(&current_state);
         }
@@ -81,7 +81,7 @@ impl Automaton {
 
     /// Traverses the dfa via the characters in `input` to find the first prefix that is matched by the dfa
     pub fn match_first_prefix<'a>(&self, input: &'a str) -> Option<&'a str> {
-        let mut current_state = self.start_state.expect("No start state set for dfa");
+        let mut current_state = self.start_state;
         for (index, current_atom) in input.chars().enumerate() {
             if self.accepting_states.contains(&current_state) {
                 return Some(&input[0..index]);
@@ -97,7 +97,7 @@ impl Automaton {
     fn match_all_prefixes(&self, input: &str) -> Vec<Range<usize>> {
         let mut matched_prefixes = Vec::new();
 
-        let mut current_state = self.start_state.expect("No start state set for dfa");
+        let mut current_state = self.start_state;
         if self.accepting_states.contains(&current_state) {
             matched_prefixes.push(Range { start: 0, end: 0 });
         }
@@ -128,7 +128,7 @@ impl Automaton {
     pub fn match_longest_prefix(&self, input: &str) -> Option<Range<usize>> {
         let mut longest_match = None;
 
-        let mut current_state = self.start_state.expect("No start state set for dfa");
+        let mut current_state = self.start_state;
         for (index, current_atom) in input.chars().enumerate() {
             if self.accepting_states.contains(&current_state) {
                 longest_match = Some(0..index + 1);
@@ -184,6 +184,10 @@ impl Automaton {
     pub fn add_state(&mut self) -> u32 {
         let states_before_adding = self.states;
         self.states += 1;
+        if self.start_state == states_before_adding {
+            // start_state should still be the dead state even after adding more states
+            self.start_state = self.states;
+        }
         self.kind = AutomatonKind::Nfa;
         states_before_adding
     }
@@ -215,7 +219,7 @@ impl Automaton {
 
     pub fn set_start_state(&mut self, state: u32) {
         if state < self.states {
-            self.start_state = Some(state);
+            self.start_state = state;
             self.kind = AutomatonKind::Nfa;
         }
     }
@@ -268,7 +272,7 @@ impl Automaton {
 
                 // Set start state in mul_dfa
                 if let Some(mul_start_state) =
-                    pair_to_dfa.get(&(self.start_state.unwrap(), other.start_state.unwrap()))
+                    pair_to_dfa.get(&(self.start_state, other.start_state))
                 {
                     mul_dfa.set_start_state(*mul_start_state);
                 }
@@ -283,7 +287,7 @@ impl Automaton {
                 format!(
                     "{} [shape={} peripheries={}];",
                     state,
-                    if Some(state) == self.start_state {
+                    if state == self.start_state {
                         "box"
                     } else {
                         "circle"
@@ -514,64 +518,57 @@ impl Default for Automaton {
 }
 
 fn nfa_to_dfa(automaton: &Automaton) -> Automaton {
-    match automaton.start_state {
-        Some(start_state) => {
-            let mut minimized_dfa = Automaton::new();
-            let mut comp_to_dfa = HashMap::new();
+    let mut minimized_dfa = Automaton::new();
+    let mut comp_to_dfa = HashMap::new();
 
-            let mut visited_comp = BTreeSet::new();
-            let mut to_visit_comp = VecDeque::new();
+    let mut visited_comp = BTreeSet::new();
+    let mut to_visit_comp = VecDeque::new();
 
-            let comp_start_state = automaton.epsilon_closure(start_state);
+    let comp_start_state = automaton.epsilon_closure(automaton.start_state);
 
-            to_visit_comp.push_back(comp_start_state.clone());
-            while let Some(from_comp) = to_visit_comp.pop_front() {
-                visited_comp.insert(from_comp.clone());
-                let from_dfa_id = match comp_to_dfa.get(&from_comp) {
-                    Some(dfa_id) => *dfa_id,
-                    None => {
-                        let dfa_id = minimized_dfa.add_state();
-                        comp_to_dfa.insert(from_comp.clone(), dfa_id);
-                        minimized_dfa.set_accepting(
-                            dfa_id,
-                            from_comp
-                                .iter()
-                                .any(|s| automaton.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
-                        );
-                        dfa_id
-                    }
-                };
-                for c in &automaton.alphabet {
-                    let to_comp = automaton.atom_closure(&from_comp, *c);
-                    if !to_comp.is_empty() {
-                        if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp) {
-                            // Composite state is already in the minimized dfa
-                            minimized_dfa.add_transition(from_dfa_id, *to_dfa_id, Some(*c));
-                        } else {
-                            // Composite state is not in the minimized dfa
-                            let to_dfa_id = minimized_dfa.add_state();
-                            minimized_dfa.set_accepting(
-                                to_dfa_id,
-                                to_comp
-                                    .iter()
-                                    .any(|s| automaton.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
-                            );
-                            to_visit_comp.push_back(to_comp.clone());
-                            comp_to_dfa.insert(to_comp, to_dfa_id);
-                            minimized_dfa.add_transition(from_dfa_id, to_dfa_id, Some(*c));
-                        }
-                    }
+    to_visit_comp.push_back(comp_start_state.clone());
+    while let Some(from_comp) = to_visit_comp.pop_front() {
+        visited_comp.insert(from_comp.clone());
+        let from_dfa_id = match comp_to_dfa.get(&from_comp) {
+            Some(dfa_id) => *dfa_id,
+            None => {
+                let dfa_id = minimized_dfa.add_state();
+                comp_to_dfa.insert(from_comp.clone(), dfa_id);
+                minimized_dfa.set_accepting(
+                    dfa_id,
+                    from_comp
+                        .iter()
+                        .any(|s| automaton.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
+                );
+                dfa_id
+            }
+        };
+        for c in &automaton.alphabet {
+            let to_comp = automaton.atom_closure(&from_comp, *c);
+            if !to_comp.is_empty() {
+                if let Some(to_dfa_id) = comp_to_dfa.get(&to_comp) {
+                    // Composite state is already in the minimized dfa
+                    minimized_dfa.add_transition(from_dfa_id, *to_dfa_id, Some(*c));
+                } else {
+                    // Composite state is not in the minimized dfa
+                    let to_dfa_id = minimized_dfa.add_state();
+                    minimized_dfa.set_accepting(
+                        to_dfa_id,
+                        to_comp
+                            .iter()
+                            .any(|s| automaton.accepting_states.contains(&s)), // state is accepting if any of the states in to_comp is accepting
+                    );
+                    to_visit_comp.push_back(to_comp.clone());
+                    comp_to_dfa.insert(to_comp, to_dfa_id);
+                    minimized_dfa.add_transition(from_dfa_id, to_dfa_id, Some(*c));
                 }
             }
-
-            minimized_dfa.set_start_state(comp_to_dfa[&comp_start_state]);
-            minimized_dfa.kind = AutomatonKind::Dfa;
-            minimized_dfa
-        }
-        None => {
-            panic!("No starting state");
         }
     }
+
+    minimized_dfa.set_start_state(comp_to_dfa[&comp_start_state]);
+    minimized_dfa.kind = AutomatonKind::Dfa;
+    minimized_dfa
 }
 
 fn dfa_to_minimized_dfa(automaton: &Automaton) -> Automaton {
@@ -591,10 +588,8 @@ fn dfa_to_minimized_dfa(automaton: &Automaton) -> Automaton {
                 comp_state_to_dfa.insert(equivalent_state, dfa_state_id);
             }
 
-            if let Some(comp_start_state) = automaton.start_state {
-                if equivalent_to_s1.contains(&comp_start_state) {
-                    min_dfa.set_start_state(dfa_state_id);
-                }
+            if equivalent_to_s1.contains(&automaton.start_state) {
+                min_dfa.set_start_state(dfa_state_id);
             }
 
             // Set accepting if all states in comp is accepting

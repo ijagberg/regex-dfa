@@ -52,7 +52,7 @@ fn build_concatenation(concat_ast: &Concat) -> Automaton {
     for append_ast in &concat_ast.asts {
         let append_automaton = build_tree(append_ast);
         assert_eq!(append_automaton.accepting_states.len(), 1);
-        let append_start_state = append_automaton.start_state.unwrap();
+        let append_start_state = append_automaton.start_state;
         let append_end_state = *append_automaton.accepting_states.iter().next().unwrap();
         let concat_append_offset = concat_automaton.states;
         concat_automaton.add_states_and_transitions(append_automaton);
@@ -83,7 +83,7 @@ fn build_repetition(repetition_ast: &Repetition) -> Automaton {
 
     let inner_automaton = build_tree(&repetition_ast.ast);
     assert_eq!(inner_automaton.accepting_states.len(), 1);
-    let inner_automaton_start_state = inner_automaton.start_state.unwrap();
+    let inner_automaton_start_state = inner_automaton.start_state;
     let inner_automaton_end_state = *inner_automaton.accepting_states.iter().next().unwrap();
     repetition_automaton.add_states_and_transitions(inner_automaton);
 
@@ -137,7 +137,7 @@ fn build_alternation(alternation_ast: &Alternation) -> Automaton {
         let alternative_automaton = build_tree(alternative_ast);
         assert_eq!(alternative_automaton.accepting_states.len(), 1);
 
-        let alternative_automaton_start_state = alternative_automaton.start_state.unwrap();
+        let alternative_automaton_start_state = alternative_automaton.start_state;
         let alternative_automaton_end_state = *alternative_automaton
             .accepting_states
             .iter()
