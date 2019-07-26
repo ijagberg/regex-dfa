@@ -1,11 +1,13 @@
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::ops::Range;
 
+type Symbols = BTreeSet<Option<char>>;
+
 #[derive(Debug)]
 pub struct Automaton {
     pub states: u32,
-    pub from_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
-    pub to_transitions: HashMap<u32, HashMap<u32, BTreeSet<Option<char>>>>,
+    pub from_transitions: HashMap<u32, HashMap<u32, Symbols>>,
+    pub to_transitions: HashMap<u32, HashMap<u32, Symbols>>,
     pub start_state: u32,
     pub accepting_states: BTreeSet<u32>,
     alphabet: BTreeSet<char>,
