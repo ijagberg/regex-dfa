@@ -35,6 +35,8 @@ fn build_class(class_ast: &Class) -> Automaton {
     }
 }
 
+/// Builds an automaton simulating a regular expression like ```[a-z]```
+/// by just building a literal with each symbol in the range as its transition
 fn build_class_set_range(class_set_range: &ClassSetRange) -> Automaton {
     let start_atom = class_set_range.start.c as u8;
     let end_atom = class_set_range.end.c as u8;
@@ -42,6 +44,8 @@ fn build_class_set_range(class_set_range: &ClassSetRange) -> Automaton {
     build_literal(((start_atom..=end_atom).map(char::from)).collect())
 }
 
+/// Builds an automaton simulating a regular expression like ```abc```
+/// by appending each symbol to the end state of the previous symbol, a -> b -> _c_
 fn build_concatenation(concat_ast: &Concat) -> Automaton {
     let mut concat_automaton = Automaton::new();
     let concat_start_state = concat_automaton.add_state();
@@ -73,6 +77,14 @@ fn build_concatenation(concat_ast: &Concat) -> Automaton {
     concat_automaton
 }
 
+/// Builds an automaton simulating a regular expression like ```a?```, ```a+``` or ```a*```
+/// For ```?```, create two states with the repeating automaton between them, and add an epsilon
+/// transition from the starting state to the end (accepting) state.
+/// For ```+```, create two states with the repeating automaton between them, and add an epsilon
+/// transition from the end (accepting) state to the starting state.
+/// For ```*```, create two states with the repeating automaton between them, and add an epsilon
+/// transition from the starting state to the end (accepting) state, and an epsilon transition from
+/// the end (accepting) state to the starting state.
 fn build_repetition(repetition_ast: &Repetition) -> Automaton {
     use regex_syntax::ast::RepetitionKind;
 
