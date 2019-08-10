@@ -18,7 +18,7 @@ fn build_tree(ast_tree: &Ast) -> Automaton {
         Ast::Alternation(ast) => build_alternation(ast),
         Ast::Group(ast) => build_tree(&ast.ast),
         Ast::Class(ast) => build_class(ast),
-        unsupported => panic!("No support for {} (yet)", unsupported),
+        unsupported => panic!("No support for {:?} (yet)", unsupported),
     }
 }
 
