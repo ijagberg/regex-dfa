@@ -1,16 +1,56 @@
 use crate::automaton::Automaton;
 use regex_syntax::ast::parse::Parser;
 use regex_syntax::ast::{
-    Alternation, Ast, Class, ClassSet, ClassSetItem, ClassSetRange, Concat, Repetition,
+    Alternation, Ast, Class, ClassSet, ClassSetItem, ClassSetRange, Concat, Error, Repetition,
 };
 use std::collections::HashSet;
 
-pub fn translate(s: &str) -> Result<Automaton, Box<std::error::Error>> {
-    let ast = Parser::new().parse(s)?;
-    Ok(build_tree(&ast))
+type TranslatorResult = Result<Automaton, TranslatorError>;
+
+#[derive(Debug)]
+pub enum TranslatorError {
+    UnsupportedAst(Ast),
+    UnsupportedClass(Class),
+    UnsupportedClassSet(ClassSet),
+    UnsupportedClassSetItem(ClassSetItem),
+    ParserError(Error),
 }
 
-fn build_tree(ast_tree: &Ast) -> Automaton {
+impl std::fmt::Display for TranslatorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "error when translating regular expression: {}",
+            match self {
+                TranslatorError::UnsupportedAst(ast) => {
+                    format!("{:?} is not a supported ast kind (yet)", ast)
+                }
+                TranslatorError::UnsupportedClass(class) => {
+                    format!("{:?} is not a supported class kind (yet)", class)
+                }
+                TranslatorError::UnsupportedClassSet(class_set) => {
+                    format!("{:?} is not a supported class set kind (yet)", class_set)
+                }
+                TranslatorError::UnsupportedClassSetItem(class_set_item) => format!(
+                    "{:?} is not a supported class set item kind (yet)",
+                    class_set_item
+                ),
+                TranslatorError::ParserError(parser_error) => parser_error.to_string(),
+            }
+        )
+    }
+}
+
+impl std::error::Error for TranslatorError {}
+
+pub fn translate(s: &str) -> TranslatorResult {
+    match Parser::new().parse(s) {
+        Ok(ast) => build_tree(&ast),
+        Err(err) => Err(TranslatorError::ParserError(err)),
+    }
+}
+
+fn build_tree(ast_tree: &Ast) -> TranslatorResult {
     match ast_tree {
         Ast::Concat(ast) => build_concatenation(ast),
         Ast::Repetition(ast) => build_repetition(ast),
@@ -18,26 +58,28 @@ fn build_tree(ast_tree: &Ast) -> Automaton {
         Ast::Alternation(ast) => build_alternation(ast),
         Ast::Group(ast) => build_tree(&ast.ast),
         Ast::Class(ast) => build_class(ast),
-        unsupported => panic!("No support for {:?} (yet)", unsupported),
+        unsupported => Err(TranslatorError::UnsupportedAst(unsupported.clone())),
     }
 }
 
-fn build_class(class_ast: &Class) -> Automaton {
+fn build_class(class_ast: &Class) -> TranslatorResult {
     match class_ast {
         Class::Bracketed(class_bracketed) => match &class_bracketed.kind {
             ClassSet::Item(item) => match item {
                 ClassSetItem::Range(class_set_range) => build_class_set_range(&class_set_range),
-                unsupported => panic!("No support for {:?} (yet)", unsupported),
+                unsupported => Err(TranslatorError::UnsupportedClassSetItem(
+                    unsupported.clone(),
+                )),
             },
-            unsupported => panic!("No support for {:?} (yet)", unsupported),
+            unsupported => Err(TranslatorError::UnsupportedClassSet(unsupported.clone())),
         },
-        unsupported => panic!("No support for {:?} (yet)", unsupported),
+        unsupported => Err(TranslatorError::UnsupportedClass(unsupported.clone())),
     }
 }
 
 /// Builds an automaton simulating a regular expression like ```[a-z]```
 /// by just building a literal with each symbol in the range as its transition
-fn build_class_set_range(class_set_range: &ClassSetRange) -> Automaton {
+fn build_class_set_range(class_set_range: &ClassSetRange) -> TranslatorResult {
     let start_atom = class_set_range.start.c as u8;
     let end_atom = class_set_range.end.c as u8;
 
@@ -46,7 +88,7 @@ fn build_class_set_range(class_set_range: &ClassSetRange) -> Automaton {
 
 /// Builds an automaton simulating a regular expression like ```abc```
 /// by appending each symbol to the end state of the previous symbol, a -> b -> _c_
-fn build_concatenation(concat_ast: &Concat) -> Automaton {
+fn build_concatenation(concat_ast: &Concat) -> TranslatorResult {
     let mut concat_automaton = Automaton::new();
     let concat_start_state = concat_automaton.add_state();
     concat_automaton.set_start_state(concat_start_state);
@@ -54,7 +96,7 @@ fn build_concatenation(concat_ast: &Concat) -> Automaton {
     let mut concat_end_state = concat_start_state;
 
     for append_ast in &concat_ast.asts {
-        let append_automaton = build_tree(append_ast);
+        let append_automaton = build_tree(append_ast)?;
         assert_eq!(append_automaton.accepting_states.len(), 1);
         let append_start_state = append_automaton.start_state;
         let append_end_state = *append_automaton.accepting_states.iter().next().unwrap();
@@ -74,7 +116,7 @@ fn build_concatenation(concat_ast: &Concat) -> Automaton {
         concat_automaton.set_accepting(concat_end_state, true);
     }
 
-    concat_automaton
+    Ok(concat_automaton)
 }
 
 /// Builds an automaton simulating a regular expression like ```a?```, ```a+``` or ```a*```
@@ -85,7 +127,7 @@ fn build_concatenation(concat_ast: &Concat) -> Automaton {
 /// For ```*```, create two states with the repeating automaton between them, and add an epsilon
 /// transition from the starting state to the end (accepting) state, and an epsilon transition from
 /// the end (accepting) state to the starting state.
-fn build_repetition(repetition_ast: &Repetition) -> Automaton {
+fn build_repetition(repetition_ast: &Repetition) -> TranslatorResult {
     use regex_syntax::ast::RepetitionKind;
 
     let mut repetition_automaton = Automaton::new();
@@ -93,7 +135,7 @@ fn build_repetition(repetition_ast: &Repetition) -> Automaton {
     let repetition_end_state = repetition_automaton.add_state();
     let repetition_to_inner_offset = repetition_automaton.states;
 
-    let inner_automaton = build_tree(&repetition_ast.ast);
+    let inner_automaton = build_tree(&repetition_ast.ast)?;
     assert_eq!(inner_automaton.accepting_states.len(), 1);
     let inner_automaton_start_state = inner_automaton.start_state;
     let inner_automaton_end_state = *inner_automaton.accepting_states.iter().next().unwrap();
@@ -137,16 +179,16 @@ fn build_repetition(repetition_ast: &Repetition) -> Automaton {
     repetition_automaton.clear_accepting();
     repetition_automaton.set_accepting(repetition_end_state, true);
 
-    repetition_automaton
+    Ok(repetition_automaton)
 }
 
-fn build_alternation(alternation_ast: &Alternation) -> Automaton {
+fn build_alternation(alternation_ast: &Alternation) -> TranslatorResult {
     let mut alternation_automaton = Automaton::new();
     let alternation_automaton_start_state = alternation_automaton.add_state();
     let alternation_automaton_end_state = alternation_automaton.add_state();
 
     for alternative_ast in &alternation_ast.asts {
-        let alternative_automaton = build_tree(alternative_ast);
+        let alternative_automaton = build_tree(alternative_ast)?;
         assert_eq!(alternative_automaton.accepting_states.len(), 1);
 
         let alternative_automaton_start_state = alternative_automaton.start_state;
@@ -177,10 +219,10 @@ fn build_alternation(alternation_ast: &Alternation) -> Automaton {
     alternation_automaton.clear_accepting();
     alternation_automaton.set_accepting(alternation_automaton_end_state, true);
 
-    alternation_automaton
+    Ok(alternation_automaton)
 }
 
-fn build_literal(atoms: HashSet<char>) -> Automaton {
+fn build_literal(atoms: HashSet<char>) -> TranslatorResult {
     let mut literal_automaton = Automaton::new();
     let start_state = literal_automaton.add_state();
     let end_state = literal_automaton.add_state();
@@ -189,5 +231,5 @@ fn build_literal(atoms: HashSet<char>) -> Automaton {
     for atom in atoms {
         literal_automaton.add_transition(start_state, end_state, Some(atom));
     }
-    literal_automaton
+    Ok(literal_automaton)
 }
