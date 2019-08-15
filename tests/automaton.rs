@@ -1,4 +1,5 @@
 use regex_dfa::automaton::Automaton;
+use regex_dfa::translator::TranslatorError;
 
 #[test]
 fn test_concatenation_whole_1() {
@@ -126,4 +127,24 @@ fn test_intersection_1() {
     println!("{}", automaton1.to_dot_format());
     println!("{}", automaton2.to_dot_format());
     println!("{}", intersection.to_dot_format());
+}
+
+#[test]
+fn test_parser_error() {
+    println!("test_parser_error:");
+    let translator_result = Automaton::from_string("aa(");
+    assert!(match translator_result {
+        Err(TranslatorError::ParserError(_)) => true,
+        _ => false,
+    });
+}
+
+#[test]
+fn test_unsupported_error() {
+    println!("test_unsupported_error:");
+    let translator_result = Automaton::from_string("[:alnum:]");
+    assert!(match translator_result {
+        Err(TranslatorError::UnsupportedClassSetItem(_)) => true,
+        _ => false,
+    });
 }

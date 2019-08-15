@@ -43,7 +43,7 @@ impl std::fmt::Display for TranslatorError {
 
 impl std::error::Error for TranslatorError {}
 
-pub fn translate(s: &str) -> TranslatorResult {
+pub(crate) fn translate(s: &str) -> TranslatorResult {
     match Parser::new().parse(s) {
         Ok(ast) => build_tree(&ast),
         Err(err) => Err(TranslatorError::ParserError(err)),

@@ -1,2 +1,2 @@
 pub mod automaton;
-mod translator;
+pub mod translator;

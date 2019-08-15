@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::ops::Range;
+use crate::translator;
 
 type Symbols = BTreeSet<Option<char>>;
 
@@ -34,8 +35,8 @@ impl Automaton {
         }
     }
 
-    pub fn from_string(s: &str) -> Result<Automaton, Box<std::error::Error>> {
-        let automaton = crate::translator::translate(s)?;
+    pub fn from_string(s: &str) -> Result<Automaton, translator::TranslatorError> {
+        let automaton = translator::translate(s)?;
         Ok(automaton)
     }
 
